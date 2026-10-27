@@ -58,6 +58,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff;margin-top:6px}
 .pend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pend button{border:1px dashed #9ca3af;background:#fff;border-radius:999px;padding:4px 10px;font-size:13px}
 .lnk{display:block;width:100%;background:none;border:0;color:#2563eb;font-size:14px;margin-top:10px;padding:6px}
+.exp{width:100%;margin-top:10px;padding:9px;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;font-size:14px}
 .msg{font-size:13px;color:var(--mut);margin-top:8px}
 .mb{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:6px 0;font-size:13px}
 .mb button{border:0;background:none;color:#dc2626;font-size:16px}
@@ -80,12 +81,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 <body>
 <div id="login"><div class="card">
   <h2 style="margin-top:0">Calendrier 2026</h2>
-  <p class="sub">Connectez-vous ou créez votre compte en quelques secondes.</p>
-  <input id="email" type="email" placeholder="prenom.nom@exemple.fr" autocomplete="email">
-  <input id="pwd" type="password" placeholder="Mot de passe (8 caractères minimum)" autocomplete="current-password">
+  <p class="sub">Connectez-vous avec votre identifiant (binome1 à binome20).</p>
+  <input id="email" type="text" placeholder="Identifiant (ex. binome3) ou e-mail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+  <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password">
   <button class="go" id="signin">Se connecter</button>
-  <button class="go" id="signup" style="background:#fff;color:#1f2937;border:2px solid #1f2937">Créer mon compte</button>
-  <button class="lnk" id="send">Recevoir un lien de connexion par e-mail</button>
+  <button class="lnk" id="send">Administrateur : recevoir un lien par e-mail</button>
   <div class="msg" id="lmsg"></div>
 </div></div>
 
@@ -100,7 +100,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 <div id="panel"><div class="card">
   <div class="row"><h3 style="margin:0">Agents et tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
   <div class="msg" style="margin-top:12px">En attente d'affectation :</div><div class="pend" id="mpend"></div>
-  <input id="memail" type="email" placeholder="e-mail de l'agent">
+  <input id="memail" type="text" placeholder="identifiant (binome3) ou e-mail" autocapitalize="none" autocorrect="off" spellcheck="false">
   <select id="mtour"></select>
   <button class="go" id="madd">Affecter</button>
   <div id="mlist" style="margin-top:12px"></div>
@@ -122,6 +122,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
     <aside id="dash">
       <div class="row"><h2 id="dtitle">Avancement</h2><button class="btn" id="dclose" style="background:#1f2937">✕</button></div>
       <div class="sub" id="dsub"></div>
+      <button class="exp" id="exp">⬇ Exporter en tableur (.xlsx)</button>
       <div class="donut" id="donut"></div>
       <div class="leg" id="leg"></div>
       <div class="kpis" id="kpis"></div>
@@ -156,37 +157,25 @@ const saveQ = () => { try { localStorage.setItem("q2", JSON.stringify(queue)); }
 function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = "none", 3500); }
 
 /* ---------- Connexion ---------- */
+const DOM = "@calendrier.local";
+const toEmail = v => { v = String(v || "").trim().toLowerCase(); return !v || v.includes("@") ? v : v + DOM; };
+const who = e => e && e.endsWith(DOM) ? e.slice(0, -DOM.length) : (e || "");
 const lmsg = t => $("lmsg").textContent = t;
-const creds = () => {
-  const email = $("email").value.trim(), password = $("pwd").value;
-  if (!email) { lmsg("Entrez votre e-mail."); return null; }
-  return { email, password };
-};
-const authErr = m => /signups? not allowed/i.test(m) ? "Les inscriptions sont fermées : demandez à l'administrateur de les ouvrir."
-  : /invalid login/i.test(m) ? "E-mail ou mot de passe incorrect."
-  : /not confirmed/i.test(m) ? "Adresse non confirmée : cliquez sur le lien reçu par e-mail."
+const authErr = m => /invalid login/i.test(m) ? "Identifiant ou mot de passe incorrect."
+  : /signups? not allowed|user not found/i.test(m) ? "Compte inconnu."
   : /rate limit/i.test(m) ? "Trop de tentatives : réessayez dans quelques minutes."
   : "Erreur : " + m;
 $("signin").onclick = async () => {
-  const c = creds(); if (!c) return;
-  if (!c.password) { lmsg("Entrez votre mot de passe."); return; }
+  const email = toEmail($("email").value), password = $("pwd").value;
+  if (!email || !password) { lmsg("Entrez votre identifiant et votre mot de passe."); return; }
   lmsg("Connexion…");
-  const { error } = await SB.auth.signInWithPassword(c);
+  const { error } = await SB.auth.signInWithPassword({ email, password });
   if (error) lmsg(authErr(error.message));
 };
-$("signup").onclick = async () => {
-  const c = creds(); if (!c) return;
-  if (c.password.length < 8) { lmsg("Choisissez un mot de passe d'au moins 8 caractères."); return; }
-  lmsg("Création du compte…");
-  const { data, error } = await SB.auth.signUp({ ...c, options: { emailRedirectTo: location.origin + location.pathname } });
-  if (error) { lmsg(authErr(error.message)); return; }
-  if (data.user && data.user.identities && data.user.identities.length === 0) { lmsg("Ce compte existe déjà : utilisez « Se connecter »."); return; }
-  if (!data.session) lmsg("Compte créé. Un e-mail de confirmation vous a été envoyé : cliquez sur son lien, puis connectez-vous.");
-};
 $("send").onclick = async () => {
-  const email = $("email").value.trim(); if (!email) { lmsg("Entrez votre e-mail."); return; }
+  const email = toEmail($("email").value); if (!email) { lmsg("Entrez votre e-mail."); return; }
   lmsg("Envoi…");
-  const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  const { error } = await SB.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname } });
   lmsg(error ? authErr(error.message) : "Lien envoyé. Ouvrez votre e-mail sur cet appareil.");
 };
 [$("email"), $("pwd")].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") $("signin").click(); }));
@@ -274,7 +263,7 @@ function addPoint(p) {
   items.set(p.id, it);
 }
 
-const maj0 = p => p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(p.maj_par)}</div>` : "";
+const maj0 = p => p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(who(p.maj_par))}</div>` : "";
 function popup(it) {
   const p = it.p;
   const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== "").join(" ");
@@ -286,7 +275,7 @@ function popup(it) {
       ${maj0(p)}<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div></div>`;
   }
   const opts = ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("");
-  const maj = p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(p.maj_par)}</div>` : "";
+  const maj = p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(who(p.maj_par))}</div>` : "";
   return `<div class="pop"><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div>
     <label for="st">Statut</label><select id="st" style="--c:${meta(p.statut).c}">${opts}</select>
     <label for="mt">Montant (€)</label><input id="mt" type="text" inputmode="decimal" placeholder="0,00" value="${p.montant === null || p.montant === undefined ? "" : String(p.montant).replace(".", ",")}">
@@ -326,6 +315,7 @@ function refresh(fit) {
   if (fit && pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
 }
 
+const labelOf = f => f === SANS ? "Sans tournée" : f === MINE ? "Mes tournées" : f || "Toutes les tournées";
 function dashboard(f) {
   const n = {}; ST.forEach(s => n[s.k] = 0);
   const days = new Map(); let total = 0, sumF = 0, sumAll = 0;
@@ -342,7 +332,7 @@ function dashboard(f) {
   });
   ST.forEach(s => { const b = document.querySelector(`.chip[data-k="${s.k}"]`); if (b) { b.textContent = `${s.l} ${n[s.k]}`; b.classList.toggle("on", active.has(s.k)); } });
 
-  const label = f === SANS ? "Sans tournée" : f === MINE ? "Mes tournées" : f || "Toutes les tournées";
+  const label = labelOf(f);
   $("dtitle").textContent = label;
   $("dsub").textContent = `${total} points`;
 
@@ -375,6 +365,52 @@ function dashboard(f) {
     : `<div class="empty">Aucune saisie pour le moment.</div><div class="tot"><span>Total</span><span>${EUR.format(0)}</span></div>`;
 }
 
+/* ---------- Export tableur ---------- */
+const loadXlsx = () => window.XLSX ? Promise.resolve() : new Promise((ok, ko) => {
+  const sc = document.createElement("script");
+  sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload = ok; sc.onerror = ko; document.head.appendChild(sc);
+});
+$("exp").onclick = async () => {
+  const f = $("ftour").value, label = labelOf(f);
+  const cmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "fr", { numeric: true });
+  const pts = [...items.values()].map(i => i.p).filter(p => inFilter(p, f))
+    .sort((a, b) => cmp(a.tournee, b.tournee) || cmp(a.nom_commune, b.nom_commune) || cmp(a.nom_voie, b.nom_voie) || cmp(a.numero, b.numero) || cmp(a.suffixe, b.suffixe));
+  const dt = d => d ? new Date(d + "T12:00:00") : "";
+  const head = ["Tournée", "Commune", "Numéro", "Suffixe", "Voie", "Statut", "Montant (€)", "Date dernière modification", "Modifié par", "Latitude", "Longitude"];
+  const rows = pts.map(p => [p.tournee || "", p.nom_commune || "", p.numero ?? "", p.suffixe || "", p.nom_voie || "", meta(p.statut).l,
+    p.montant === null || p.montant === undefined ? "" : Number(p.montant), dt(p.date_passage), who(p.maj_par), p.lat, p.lon]);
+  const jours = new Map(); let tot = 0, nb = 0;
+  pts.forEach(p => { if (p.statut !== "a_faire" && p.date_passage) {
+    const m = Number(p.montant) || 0, d = jours.get(p.date_passage) || { n: 0, s: 0 }; d.n++; d.s += m; jours.set(p.date_passage, d); tot += m; nb++; } });
+  const jrows = [...jours.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => [dt(d), v.n, Math.round(v.s * 100) / 100]);
+  jrows.push(["Total", nb, Math.round(tot * 100) / 100]);
+  const nom = `calendrier_2026_${label.replace(/[^\w-]+/g, "_")}_${parisDay()}`;
+  try {
+    await loadXlsx();
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([head, ...rows], { cellDates: true });
+    rows.forEach((_, i) => {
+      const m = ws["G" + (i + 2)], d = ws["H" + (i + 2)];
+      if (m && m.t === "n") m.z = "#,##0.00"; if (d && d.t === "d") d.z = "dd/mm/yyyy";
+    });
+    ws["!cols"] = [14, 20, 8, 8, 30, 10, 12, 22, 16, 11, 11].map(w => ({ wch: w }));
+    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: head.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws, "Points");
+    const wj = XLSX.utils.aoa_to_sheet([["Date", "Points traités", "Montant (€)"], ...jrows], { cellDates: true });
+    jrows.forEach((_, i) => { const d = wj["A" + (i + 2)], m = wj["C" + (i + 2)]; if (d && d.t === "d") d.z = "dd/mm/yyyy"; if (m) m.z = "#,##0.00"; });
+    wj["!cols"] = [14, 14, 14].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, wj, "Par jour");
+    XLSX.writeFile(wb, nom + ".xlsx", { cellDates: true });
+  } catch (e) {
+    // hors-ligne : repli en CSV (ouvrable dans Excel / LibreOffice)
+    const fmt = v => v instanceof Date ? v.toLocaleDateString("fr-FR") : typeof v === "number" ? String(v).replace(".", ",") : v;
+    const csv = [head, ...rows].map(r => r.map(v => `"${String(fmt(v)).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); a.download = nom + ".csv"; a.click();
+    toast("Hors-ligne : export CSV");
+  }
+};
+
 $("dbtn").onclick = () => $("dash").classList.add("open");
 $("dclose").onclick = () => $("dash").classList.remove("open");
 
@@ -387,21 +423,21 @@ async function listPending() {
   const [u, m] = await Promise.all([SB.from("utilisateurs").select("email,role"), SB.from("membres").select("email")]);
   const has = new Set((m.data || []).map(x => x.email));
   const pend = (u.data || []).filter(x => x.role !== "admin" && !has.has(x.email));
-  $("mpend").innerHTML = pend.map(x => `<button data-e="${esc(x.email)}">${esc(x.email)}</button>`).join("") || '<span class="msg">Aucun compte en attente.</span>';
-  $("mpend").querySelectorAll("button").forEach(b => b.onclick = () => { $("memail").value = b.dataset.e; });
+  $("mpend").innerHTML = pend.map(x => `<button data-e="${esc(x.email)}">${esc(who(x.email))}</button>`).join("") || '<span class="msg">Aucun compte en attente.</span>';
+  $("mpend").querySelectorAll("button").forEach(b => b.onclick = () => { $("memail").value = who(b.dataset.e); });
 }
 $("pclose").onclick = () => $("panel").style.display = "none";
 async function listMembres() {
   listPending();
   const { data } = await SB.from("membres").select("email,tournee").order("email").order("tournee");
-  $("mlist").innerHTML = (data || []).map(m => `<div class="mb"><span>${esc(m.email)} · <b>${esc(m.tournee)}</b></span>
+  $("mlist").innerHTML = (data || []).map(m => `<div class="mb"><span>${esc(who(m.email))} · <b>${esc(m.tournee)}</b></span>
     <button data-e="${esc(m.email)}" data-t="${esc(m.tournee)}">✕</button></div>`).join("") || '<div class="msg">Aucune affectation.</div>';
   $("mlist").querySelectorAll("button").forEach(b => b.onclick = async () => {
     await SB.from("membres").delete().eq("email", b.dataset.e).eq("tournee", b.dataset.t); listMembres();
   });
 }
 $("madd").onclick = async () => {
-  const email = $("memail").value.trim().toLowerCase(); if (!email) return;
+  const email = toEmail($("memail").value); if (!email) return;
   const { error } = await SB.from("membres").insert({ email, tournee: $("mtour").value });
   if (error) toast(error.message); else { $("memail").value = ""; listMembres(); }
 };
