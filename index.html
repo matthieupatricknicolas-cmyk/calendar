@@ -52,10 +52,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .day .v small{display:block;color:var(--mut);font-size:11.5px}
 .tot{display:flex;justify-content:space-between;border-top:2px solid var(--ink);margin-top:8px;padding-top:8px;font-weight:600;font-variant-numeric:tabular-nums}
 .empty{color:var(--mut);font-size:13px;padding:8px 0}
-#login,#panel{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
+#login,#panel,#wait{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
 .card{max-width:420px;margin:0 auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
 .card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
 .card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff;margin-top:6px}
+.pend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pend button{border:1px dashed #9ca3af;background:#fff;border-radius:999px;padding:4px 10px;font-size:13px}
 .msg{font-size:13px;color:var(--mut);margin-top:8px}
 .mb{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:6px 0;font-size:13px}
 .mb button{border:0;background:none;color:#dc2626;font-size:16px}
@@ -84,8 +85,17 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   <div class="msg" id="lmsg"></div>
 </div></div>
 
+<div id="wait"><div class="card">
+  <h2 style="margin-top:0">Compte créé</h2>
+  <p>Votre compte n'a pas encore de tournée. Un administrateur doit vous en affecter une : vous aurez alors accès à la carte.</p>
+  <p class="sub" id="wmail"></p>
+  <button class="go" id="wreload">Actualiser</button>
+  <button class="go" id="wout" style="background:#6b7280">Se déconnecter</button>
+</div></div>
+
 <div id="panel"><div class="card">
   <div class="row"><h3 style="margin:0">Agents et tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
+  <div class="msg" style="margin-top:12px">En attente d'affectation :</div><div class="pend" id="mpend"></div>
   <input id="memail" type="email" placeholder="e-mail de l'agent">
   <select id="mtour"></select>
   <button class="go" id="madd">Affecter</button>
@@ -129,9 +139,11 @@ const meta = k => ST.find(s => s.k === k) || ST[0];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-const SANS = "__sans__";
+const SANS = "__sans__", MINE = "__mine__";
 const parisDay = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" });
 const fmtDay = d => new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" });
+const mine = new Set();
+const canEdit = p => isAdmin || (p.tournee && mine.has(p.tournee));
 let isAdmin = false, me = "", map, layer, started = false, tournees = [];
 const items = new Map(), active = new Set(ST.map(s => s.k));
 let queue = []; try { queue = JSON.parse(localStorage.getItem("q2") || "[]"); } catch (e) {}
@@ -146,7 +158,8 @@ $("send").onclick = async () => {
   const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
   $("lmsg").textContent = error ? "Erreur : " + error.message : "Lien envoyé. Ouvrez votre e-mail sur cet appareil.";
 };
-$("out").onclick = async () => { await SB.auth.signOut(); location.reload(); };
+$("out").onclick = $("wout").onclick = async () => { await SB.auth.signOut(); location.reload(); };
+$("wreload").onclick = () => location.reload();
 SB.auth.onAuthStateChange((ev, s) => { if (s && !started) start(); });
 (async () => {
   const { data } = await SB.auth.getSession();
@@ -161,6 +174,11 @@ async function start() {
   await SB.rpc("claim_admin");
   isAdmin = (await SB.rpc("is_admin")).data === true;
   if (isAdmin) $("adm").style.display = "";
+  else {
+    const { data: ms } = await SB.from("membres").select("tournee");
+    (ms || []).forEach(m => mine.add(m.tournee));
+    if (!mine.size) { $("wmail").textContent = me; $("wait").style.display = "block"; return; }
+  }
   initMap();
   await loadAll();
   flush();
@@ -189,22 +207,20 @@ async function loadAll() {
   }
   const t = await SB.from("tournees").select("nom").order("nom");
   tournees = (t.data || []).map(x => x.nom);
-  const used = [...new Set([...items.values()].map(i => i.p.tournee).filter(Boolean))].sort();
-  const names = isAdmin ? tournees : used;
-  $("ftour").innerHTML = `<option value="">${isAdmin ? "Toutes les tournées" : names.length > 1 ? "Mes tournées" : (names[0] || "Aucune tournée")}</option>` +
-    names.map(n => `<option>${esc(n)}</option>`).join("") + (isAdmin ? `<option value="${SANS}">(sans tournée)</option>` : "");
+  $("ftour").innerHTML = (isAdmin ? "" : `<option value="${MINE}">Mes tournées</option>`) + `<option value="">Toutes les tournées</option>` +
+    tournees.map(n => `<option value="${esc(n)}">${!isAdmin && mine.has(n) ? "★ " : ""}${esc(n)}</option>`).join("") + `<option value="${SANS}">(sans tournée)</option>`;
+  $("ftour").value = isAdmin ? "" : MINE;
   $("ftour").onchange = () => refresh(true);
   ST.forEach(s => {
     const b = document.createElement("button"); b.className = "chip"; b.dataset.k = s.k; b.style.setProperty("--c", s.c);
     b.onclick = () => toggle(s.k);
     $("chips").appendChild(b);
   });
-  if (!items.size) toast("Aucun point : demandez à un administrateur de vous affecter une tournée.");
   refresh(true);
 }
 
 const toggle = k => { active.has(k) ? active.delete(k) : active.add(k); refresh(false); };
-const sty = p => ({ radius: 10, color: "#fff", weight: 2, fillColor: meta(p.statut).c, fillOpacity: .95 });
+const sty = p => ({ radius: 10, color: "#fff", weight: 2, fillColor: meta(p.statut).c, fillOpacity: canEdit(p) ? .95 : .5 });
 const restyle = it => it.m.setStyle(sty(it.p));
 
 function addPoint(p) {
@@ -213,6 +229,7 @@ function addPoint(p) {
   m.bindPopup(() => popup(it), { maxWidth: 300, autoPanPadding: [20, 70] });
   m.on("popupopen", e => {
     const el = e.popup.getElement(), s = el.querySelector("#st"), mt = el.querySelector("#mt");
+    if (!s) return;
     s.onchange = () => s.style.setProperty("--c", meta(s.value).c);
     el.querySelector("#sv").onclick = () => {
       const raw = mt.value.trim().replace(/\s/g, "").replace(",", ".");
@@ -225,9 +242,17 @@ function addPoint(p) {
   items.set(p.id, it);
 }
 
+const maj0 = p => p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(p.maj_par)}</div>` : "";
 function popup(it) {
   const p = it.p;
   const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== "").join(" ");
+  if (!canEdit(p)) {
+    const m = meta(p.statut);
+    return `<div class="pop"><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div>
+      <div style="margin-top:8px"><span class="dot" style="background:${m.c};display:inline-block;vertical-align:-1px"></span> <b>${m.l}</b></div>
+      <div>Montant : <b>${p.montant === null || p.montant === undefined ? "—" : EUR.format(p.montant)}</b></div>
+      ${maj0(p)}<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div></div>`;
+  }
   const opts = ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("");
   const maj = p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(p.maj_par)}</div>` : "";
   return `<div class="pop"><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div>
@@ -238,6 +263,7 @@ function popup(it) {
 
 /* ---------- Saisie + file d'attente hors-ligne ---------- */
 function save(it, statut, montant) {
+  if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
   Object.assign(it.p, { statut, montant, date_passage: parisDay(), maj_le: new Date().toISOString(), maj_par: me });
   restyle(it); refresh(false);
   queue = queue.filter(q => q.id !== it.p.id); queue.push({ id: it.p.id, statut, montant }); saveQ(); flush();
@@ -256,7 +282,7 @@ async function flush() {
 addEventListener("online", flush);
 
 /* ---------- Filtre + tableau de bord ---------- */
-const inFilter = (p, f) => !f || (f === SANS ? !p.tournee : p.tournee === f);
+const inFilter = (p, f) => !f || (f === SANS ? !p.tournee : f === MINE ? mine.has(p.tournee) : p.tournee === f);
 
 function refresh(fit) {
   const f = $("ftour").value, pts = [];
@@ -284,7 +310,7 @@ function dashboard(f) {
   });
   ST.forEach(s => { const b = document.querySelector(`.chip[data-k="${s.k}"]`); if (b) { b.textContent = `${s.l} ${n[s.k]}`; b.classList.toggle("on", active.has(s.k)); } });
 
-  const label = f === SANS ? "Sans tournée" : f || (isAdmin ? "Toutes les tournées" : "Mes tournées");
+  const label = f === SANS ? "Sans tournée" : f === MINE ? "Mes tournées" : f || "Toutes les tournées";
   $("dtitle").textContent = label;
   $("dsub").textContent = `${total} points`;
 
@@ -325,8 +351,16 @@ $("adm").onclick = async () => {
   $("mtour").innerHTML = tournees.map(n => `<option>${esc(n)}</option>`).join("");
   $("panel").style.display = "block"; listMembres();
 };
+async function listPending() {
+  const [u, m] = await Promise.all([SB.from("utilisateurs").select("email,role"), SB.from("membres").select("email")]);
+  const has = new Set((m.data || []).map(x => x.email));
+  const pend = (u.data || []).filter(x => x.role !== "admin" && !has.has(x.email));
+  $("mpend").innerHTML = pend.map(x => `<button data-e="${esc(x.email)}">${esc(x.email)}</button>`).join("") || '<span class="msg">Aucun compte en attente.</span>';
+  $("mpend").querySelectorAll("button").forEach(b => b.onclick = () => { $("memail").value = b.dataset.e; });
+}
 $("pclose").onclick = () => $("panel").style.display = "none";
 async function listMembres() {
+  listPending();
   const { data } = await SB.from("membres").select("email,tournee").order("email").order("tournee");
   $("mlist").innerHTML = (data || []).map(m => `<div class="mb"><span>${esc(m.email)} · <b>${esc(m.tournee)}</b></span>
     <button data-e="${esc(m.email)}" data-t="${esc(m.tournee)}">✕</button></div>`).join("") || '<div class="msg">Aucune affectation.</div>';
