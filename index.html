@@ -16,6 +16,8 @@ html,body{height:100%;margin:0;font:15px/1.4 system-ui,-apple-system,"Segoe UI",
 header{background:var(--bar);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 8px;z-index:1600;position:relative}
 .row{display:flex;gap:6px;align-items:center;justify-content:space-between}
 header select{flex:1;min-width:0;font-size:14px;padding:6px;border-radius:8px;border:0}
+.btn.on{background:#2563eb}
+.gps-pin{background:none;border:0;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}
 .btn{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:14px}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .chip{flex:none;border:2px solid var(--c);color:#fff;background:transparent;border-radius:999px;padding:4px 10px;font-size:13px}
@@ -207,6 +209,39 @@ async function start() {
     p => { const it = items.get(p.new.id); if (it) { Object.assign(it.p, p.new); restyle(it); refresh(false); } }).subscribe();
 }
 
+/* ---------- Position GPS (punaise bleue) ---------- */
+const PIN = `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 37 14 37s12.5-15 12.5-23.8C26.5 6.4 21 1 14 1z" fill="#2563eb" stroke="#fff" stroke-width="2"/><circle cx="14" cy="13" r="5" fill="#fff"/></svg>`;
+function initGps() {
+  let on = false, first = true, pin = null, halo = null;
+  const btn = $("loc");
+  const off = () => {
+    on = false; map.stopLocate(); btn.classList.remove("on");
+    if (pin) { pin.remove(); pin = null; } if (halo) { halo.remove(); halo = null; }
+  };
+  btn.onclick = () => {
+    if (on) { off(); toast("Position désactivée"); return; }
+    if (!navigator.geolocation) { toast("Localisation non disponible sur cet appareil"); return; }
+    on = true; first = true; btn.classList.add("on"); toast("Recherche de votre position…");
+    map.locate({ watch: true, enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+  };
+  map.on("locationfound", e => {
+    if (!on) return;
+    if (!pin) pin = L.marker(e.latlng, { icon: L.divIcon({ className: "gps-pin", html: PIN, iconSize: [28, 38], iconAnchor: [14, 37] }), interactive: false, keyboard: false, zIndexOffset: 2000 }).addTo(map);
+    else pin.setLatLng(e.latlng);
+    if (e.accuracy < 500) {
+      if (!halo) halo = L.circle(e.latlng, { radius: e.accuracy, color: "#2563eb", weight: 1, fillColor: "#2563eb", fillOpacity: .12, interactive: false }).addTo(map);
+      else halo.setLatLng(e.latlng).setRadius(e.accuracy);
+    }
+    if (first) { first = false; map.setView(e.latlng, Math.max(map.getZoom(), 17)); toast("Position activée (±" + Math.round(e.accuracy) + " m)"); }
+  });
+  map.on("locationerror", e => {
+    if (!on) return;
+    if (e.code !== 1 && !first) return; // perte de signal passagère : on garde la dernière position
+    off();
+    toast(e.code === 1 ? "Localisation refusée : autorisez-la dans les réglages du navigateur" : "Position indisponible, réessayez en extérieur");
+  });
+}
+
 function initMap() {
   map = L.map("map", { zoomControl: false, preferCanvas: true, renderer: L.canvas({ tolerance: 10 }) });
   L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -214,7 +249,7 @@ function initMap() {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
   layer = L.layerGroup().addTo(map);
   map.setView([46.77, 5.62], 13);
-  $("loc").onclick = () => map.locate({ setView: true, maxZoom: 17 });
+  initGps();
   addEventListener("resize", () => map.invalidateSize());
 }
 
