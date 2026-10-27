@@ -57,6 +57,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
 .card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff;margin-top:6px}
 .pend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pend button{border:1px dashed #9ca3af;background:#fff;border-radius:999px;padding:4px 10px;font-size:13px}
+.lnk{display:block;width:100%;background:none;border:0;color:#2563eb;font-size:14px;margin-top:10px;padding:6px}
 .msg{font-size:13px;color:var(--mut);margin-top:8px}
 .mb{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:6px 0;font-size:13px}
 .mb button{border:0;background:none;color:#dc2626;font-size:16px}
@@ -79,9 +80,12 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 <body>
 <div id="login"><div class="card">
   <h2 style="margin-top:0">Calendrier 2026</h2>
-  <p class="sub">Entrez votre e-mail : vous recevrez un lien de connexion.</p>
+  <p class="sub">Connectez-vous ou créez votre compte en quelques secondes.</p>
   <input id="email" type="email" placeholder="prenom.nom@exemple.fr" autocomplete="email">
-  <button class="go" id="send">Recevoir le lien</button>
+  <input id="pwd" type="password" placeholder="Mot de passe (8 caractères minimum)" autocomplete="current-password">
+  <button class="go" id="signin">Se connecter</button>
+  <button class="go" id="signup" style="background:#fff;color:#1f2937;border:2px solid #1f2937">Créer mon compte</button>
+  <button class="lnk" id="send">Recevoir un lien de connexion par e-mail</button>
   <div class="msg" id="lmsg"></div>
 </div></div>
 
@@ -152,12 +156,40 @@ const saveQ = () => { try { localStorage.setItem("q2", JSON.stringify(queue)); }
 function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = "none", 3500); }
 
 /* ---------- Connexion ---------- */
-$("send").onclick = async () => {
-  const email = $("email").value.trim(); if (!email) return;
-  $("lmsg").textContent = "Envoi…";
-  const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-  $("lmsg").textContent = error ? "Erreur : " + error.message : "Lien envoyé. Ouvrez votre e-mail sur cet appareil.";
+const lmsg = t => $("lmsg").textContent = t;
+const creds = () => {
+  const email = $("email").value.trim(), password = $("pwd").value;
+  if (!email) { lmsg("Entrez votre e-mail."); return null; }
+  return { email, password };
 };
+const authErr = m => /signups? not allowed/i.test(m) ? "Les inscriptions sont fermées : demandez à l'administrateur de les ouvrir."
+  : /invalid login/i.test(m) ? "E-mail ou mot de passe incorrect."
+  : /not confirmed/i.test(m) ? "Adresse non confirmée : cliquez sur le lien reçu par e-mail."
+  : /rate limit/i.test(m) ? "Trop de tentatives : réessayez dans quelques minutes."
+  : "Erreur : " + m;
+$("signin").onclick = async () => {
+  const c = creds(); if (!c) return;
+  if (!c.password) { lmsg("Entrez votre mot de passe."); return; }
+  lmsg("Connexion…");
+  const { error } = await SB.auth.signInWithPassword(c);
+  if (error) lmsg(authErr(error.message));
+};
+$("signup").onclick = async () => {
+  const c = creds(); if (!c) return;
+  if (c.password.length < 8) { lmsg("Choisissez un mot de passe d'au moins 8 caractères."); return; }
+  lmsg("Création du compte…");
+  const { data, error } = await SB.auth.signUp({ ...c, options: { emailRedirectTo: location.origin + location.pathname } });
+  if (error) { lmsg(authErr(error.message)); return; }
+  if (data.user && data.user.identities && data.user.identities.length === 0) { lmsg("Ce compte existe déjà : utilisez « Se connecter »."); return; }
+  if (!data.session) lmsg("Compte créé. Un e-mail de confirmation vous a été envoyé : cliquez sur son lien, puis connectez-vous.");
+};
+$("send").onclick = async () => {
+  const email = $("email").value.trim(); if (!email) { lmsg("Entrez votre e-mail."); return; }
+  lmsg("Envoi…");
+  const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  lmsg(error ? authErr(error.message) : "Lien envoyé. Ouvrez votre e-mail sur cet appareil.");
+};
+[$("email"), $("pwd")].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") $("signin").click(); }));
 $("out").onclick = $("wout").onclick = async () => { await SB.auth.signOut(); location.reload(); };
 $("wreload").onclick = () => location.reload();
 SB.auth.onAuthStateChange((ev, s) => { if (s && !started) start(); });
