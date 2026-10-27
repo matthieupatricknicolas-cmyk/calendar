@@ -58,12 +58,12 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .card{max-width:420px;margin:0 auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
 .card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
 .card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff;margin-top:6px}
-.pend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pend button{border:1px dashed #9ca3af;background:#fff;border-radius:999px;padding:4px 10px;font-size:13px}
-.lnk{display:block;width:100%;background:none;border:0;color:#2563eb;font-size:14px;margin-top:10px;padding:6px}
-.exp{width:100%;margin-top:10px;padding:9px;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;font-size:14px}
+#panel .card{max-width:620px}
+.afilt{display:flex;gap:6px;margin:10px 0 4px}.afilt button{border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:5px 12px;font-size:13px}.afilt button.on{background:#1f2937;color:#fff;border-color:#1f2937}
+.ar{display:grid;grid-template-columns:1fr minmax(130px,44%);gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.ar b{display:block;font-size:14px}.ar small{color:var(--mut);font-size:12px}
+.card .ar select{margin:0;font-size:15px;padding:8px}.ar.free select{border-color:#f59e0b;background:#fffbeb}
 .msg{font-size:13px;color:var(--mut);margin-top:8px}
-.mb{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:6px 0;font-size:13px}
-.mb button{border:0;background:none;color:#dc2626;font-size:16px}
 .leaflet-popup-content{margin:12px 14px;min-width:220px}
 .leaflet-popup-content h3{margin:0 0 2px;font-size:16px}
 .pop .sub{color:var(--mut);font-size:13px}
@@ -100,12 +100,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 </div></div>
 
 <div id="panel"><div class="card">
-  <div class="row"><h3 style="margin:0">Agents et tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
-  <div class="msg" style="margin-top:12px">En attente d'affectation :</div><div class="pend" id="mpend"></div>
-  <input id="memail" type="text" placeholder="identifiant (binome3) ou e-mail" autocapitalize="none" autocorrect="off" spellcheck="false">
-  <select id="mtour"></select>
-  <button class="go" id="madd">Affecter</button>
-  <div id="mlist" style="margin-top:12px"></div>
+  <div class="row"><h3 style="margin:0">Affectation des tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
+  <div class="sub" id="asum" style="margin-top:6px"></div>
+  <div class="afilt"><button id="af_all" class="on">Toutes</button><button id="af_free">Sans binôme</button></div>
+  <div id="alist"></div>
+  <div class="sub" id="afree" style="margin-top:12px"></div>
 </div></div>
 
 <div id="app">
@@ -190,6 +189,12 @@ SB.auth.onAuthStateChange((ev, s) => { if (s && !started) start(); });
 })();
 
 /* ---------- Démarrage ---------- */
+async function checkMine() {
+  const { data, error } = await SB.from("membres").select("tournee");
+  if (error || !data) return;
+  const cur = new Set(data.map(m => m.tournee));
+  if (cur.size !== mine.size || [...cur].some(t => !mine.has(t))) location.reload();
+}
 async function start() {
   if (started) return; started = true;
   $("login").style.display = "none";
@@ -200,7 +205,8 @@ async function start() {
   else {
     const { data: ms } = await SB.from("membres").select("tournee");
     (ms || []).forEach(m => mine.add(m.tournee));
-    if (!mine.size) { $("wmail").textContent = me; $("wait").style.display = "block"; return; }
+    addEventListener("visibilitychange", () => { if (!document.hidden) checkMine(); });
+    if (!mine.size) { $("wmail").textContent = me; $("wait").style.display = "block"; setInterval(() => { if (!document.hidden) checkMine(); }, 15000); return; }
   }
   initMap();
   await loadAll();
@@ -469,33 +475,47 @@ $("exp").onclick = async () => {
 $("dbtn").onclick = () => $("dash").classList.add("open");
 $("dclose").onclick = () => $("dash").classList.remove("open");
 
-/* ---------- Administration ---------- */
-$("adm").onclick = async () => {
-  $("mtour").innerHTML = tournees.map(n => `<option>${esc(n)}</option>`).join("");
-  $("panel").style.display = "block"; listMembres();
-};
-async function listPending() {
-  const [u, m] = await Promise.all([SB.from("utilisateurs").select("email,role"), SB.from("membres").select("email")]);
-  const has = new Set((m.data || []).map(x => x.email));
-  const pend = (u.data || []).filter(x => x.role !== "admin" && !has.has(x.email));
-  $("mpend").innerHTML = pend.map(x => `<button data-e="${esc(x.email)}">${esc(who(x.email))}</button>`).join("") || '<span class="msg">Aucun compte en attente.</span>';
-  $("mpend").querySelectorAll("button").forEach(b => b.onclick = () => { $("memail").value = who(b.dataset.e); });
-}
+/* ---------- Administration : une tournée = un binôme ---------- */
+const adm = { users: [], owner: new Map(), onlyFree: false };
+const natural = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
+$("adm").onclick = async () => { $("panel").style.display = "block"; await loadAdmin(); };
 $("pclose").onclick = () => $("panel").style.display = "none";
-async function listMembres() {
-  listPending();
-  const { data } = await SB.from("membres").select("email,tournee").order("email").order("tournee");
-  $("mlist").innerHTML = (data || []).map(m => `<div class="mb"><span>${esc(who(m.email))} · <b>${esc(m.tournee)}</b></span>
-    <button data-e="${esc(m.email)}" data-t="${esc(m.tournee)}">✕</button></div>`).join("") || '<div class="msg">Aucune affectation.</div>';
-  $("mlist").querySelectorAll("button").forEach(b => b.onclick = async () => {
-    await SB.from("membres").delete().eq("email", b.dataset.e).eq("tournee", b.dataset.t); listMembres();
-  });
+async function loadAdmin() {
+  const [u, m] = await Promise.all([SB.from("utilisateurs").select("email,role"), SB.from("membres").select("email,tournee")]);
+  const users = new Set((u.data || []).filter(x => x.role !== "admin").map(x => x.email));
+  (m.data || []).forEach(x => users.add(x.email));
+  adm.users = [...users].sort((a, b) => natural(who(a), who(b)));
+  adm.owner = new Map((m.data || []).map(x => [x.tournee, x.email]));
+  renderAdmin();
 }
-$("madd").onclick = async () => {
-  const email = toEmail($("memail").value); if (!email) return;
-  const { error } = await SB.from("membres").insert({ email, tournee: $("mtour").value });
-  if (error) toast(error.message); else { $("memail").value = ""; listMembres(); }
-};
+function renderAdmin() {
+  const cnt = new Map(); adm.owner.forEach(e => cnt.set(e, (cnt.get(e) || 0) + 1));
+  const st = new Map();
+  items.forEach(({ p }) => { if (!p.tournee) return; const v = st.get(p.tournee) || { n: 0, d: 0 }; v.n++; if (p.statut !== "a_faire") v.d++; st.set(p.tournee, v); });
+  const all = [...tournees].sort(natural), free = all.filter(t => !adm.owner.has(t));
+  $("asum").textContent = `${all.length} tournées · ${all.length - free.length} affectées · ${free.length} sans binôme`;
+  $("af_all").classList.toggle("on", !adm.onlyFree); $("af_free").classList.toggle("on", adm.onlyFree);
+  const top = $("panel").scrollTop;
+  $("alist").innerHTML = (adm.onlyFree ? free : all).map(t => {
+    const cur = adm.owner.get(t), v = st.get(t) || { n: 0, d: 0 };
+    const opts = `<option value="">— sans binôme —</option>` + adm.users.map(e =>
+      `<option value="${esc(e)}"${e === cur ? " selected" : ""}>${esc(who(e))} (${cnt.get(e) || 0})</option>`).join("");
+    return `<div class="ar${cur ? "" : " free"}"><div><b>${esc(t)}</b><small>${v.n} pts · ${v.n ? Math.round(v.d / v.n * 100) : 0} % traités</small></div>
+      <select data-t="${esc(t)}">${opts}</select></div>`;
+  }).join("") || '<div class="msg">Toutes les tournées ont un binôme.</div>';
+  $("alist").querySelectorAll("select").forEach(sel => sel.onchange = () => affecter(sel.dataset.t, sel.value));
+  const idle = adm.users.filter(e => !cnt.has(e));
+  $("afree").textContent = idle.length ? `Binômes sans tournée (${idle.length}) : ${idle.map(who).join(", ")}` : "Tous les binômes ont au moins une tournée.";
+  $("panel").scrollTop = top;
+}
+async function affecter(t, email) {
+  const { error } = await SB.rpc("affecter_tournee", { p_tournee: t, p_email: email || null });
+  if (error) { toast(error.message); await loadAdmin(); return; }
+  if (email) adm.owner.set(t, email); else adm.owner.delete(t);
+  renderAdmin(); toast(`${t} → ${email ? who(email) : "sans binôme"}`);
+}
+$("af_all").onclick = () => { adm.onlyFree = false; renderAdmin(); };
+$("af_free").onclick = () => { adm.onlyFree = true; renderAdmin(); };
 </script>
 </body>
 </html>
