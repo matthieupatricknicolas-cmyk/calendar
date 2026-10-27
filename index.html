@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f2937">
+<title>Calendrier 2026</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#111827}
+#app{display:flex;flex-direction:column;height:100%}
+header{background:#1f2937;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 8px}
+.row{display:flex;gap:6px;align-items:center;justify-content:space-between}
+header select{flex:1;min-width:0;font-size:14px;padding:6px;border-radius:8px;border:0}
+.btn{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:14px}
+.chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
+.chip{flex:none;border:2px solid var(--c);color:#fff;background:transparent;border-radius:999px;padding:4px 10px;font-size:13px}
+.chip.on{background:var(--c)}
+#map{flex:1;min-height:0}
+#login,#panel{position:fixed;inset:0;background:#f3f4f6;z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
+.card{max-width:420px;margin:0 auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+.card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
+.card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:#1f2937;color:#fff;margin-top:6px}
+.msg{font-size:13px;color:#6b7280;margin-top:8px}
+.mb{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e5e7eb;padding:6px 0;font-size:13px}
+.mb button{border:0;background:none;color:#dc2626;font-size:16px}
+.leaflet-popup-content{margin:12px 14px;min-width:210px}
+.leaflet-popup-content h3{margin:0 0 2px;font-size:16px}
+.sub{color:#6b7280;font-size:13px}
+.pstat{width:100%;font-size:16px;padding:9px;border-radius:8px;border:2px solid var(--c,#999);background:#fff;margin:4px 0 6px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:#111827;color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3000;display:none}
+</style>
+</head>
+<body>
+<div id="login"><div class="card">
+  <h2 style="margin-top:0">Calendrier 2026</h2>
+  <p class="sub">Entrez votre e-mail : vous recevrez un lien de connexion.</p>
+  <input id="email" type="email" placeholder="prenom.nom@exemple.fr" autocomplete="email">
+  <button class="go" id="send">Recevoir le lien</button>
+  <div class="msg" id="lmsg"></div>
+</div></div>
+
+<div id="panel"><div class="card">
+  <div class="row"><h3 style="margin:0">Agents et tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
+  <input id="memail" type="email" placeholder="e-mail de l'agent">
+  <select id="mtour"></select>
+  <button class="go" id="madd">Affecter</button>
+  <div id="mlist" style="margin-top:12px"></div>
+</div></div>
+
+<div id="app">
+  <header>
+    <div class="row">
+      <select id="ftour"></select>
+      <button class="btn" id="loc">📍</button>
+      <button class="btn" id="adm" style="display:none">👥</button>
+      <button class="btn" id="out">⎋</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <div id="map"></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SB = supabase.createClient("https://oczxkctqaxfigsfjzoeu.supabase.co", "sb_publishable_KP5UHHZqW4NGj3GFRYJyng_mDwnoikz");
+const ST = [
+  {k:"a_faire", l:"À faire", c:"#3b82f6"}, {k:"fait", l:"Fait", c:"#16a34a"},
+  {k:"repasse", l:"Repassé", c:"#f59e0b"}, {k:"refus", l:"Refus", c:"#dc2626"}];
+const meta = k => ST.find(s => s.k === k) || ST[0];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const SANS = "__sans__";
+let isAdmin = false, map, layer, started = false, tournees = [];
+const items = new Map(), active = new Set(ST.map(s => s.k));
+let queue = []; try { queue = JSON.parse(localStorage.getItem("q") || "[]"); } catch (e) {}
+const saveQ = () => { try { localStorage.setItem("q", JSON.stringify(queue)); } catch (e) {} };
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = "none", 3000); }
+
+/* ---------- Connexion ---------- */
+$("send").onclick = async () => {
+  const email = $("email").value.trim(); if (!email) return;
+  $("lmsg").textContent = "Envoi…";
+  const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  $("lmsg").textContent = error ? "Erreur : " + error.message : "Lien envoyé. Ouvrez votre e-mail sur cet appareil.";
+};
+$("out").onclick = async () => { await SB.auth.signOut(); location.reload(); };
+SB.auth.onAuthStateChange((ev, s) => { if (s && !started) start(); });
+(async () => {
+  const { data } = await SB.auth.getSession();
+  if (data.session) start(); else $("login").style.display = "block";
+})();
+
+/* ---------- Démarrage ---------- */
+async function start() {
+  if (started) return; started = true;
+  $("login").style.display = "none";
+  await SB.rpc("claim_admin");
+  isAdmin = (await SB.rpc("is_admin")).data === true;
+  if (isAdmin) $("adm").style.display = "";
+  initMap();
+  await loadAll();
+  flush();
+  SB.channel("pts").on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
+    p => { const it = items.get(p.new.id); if (it) { Object.assign(it.p, p.new); restyle(it); refresh(false); } }).subscribe();
+}
+
+function initMap() {
+  map = L.map("map", { zoomControl: false, preferCanvas: true, renderer: L.canvas({ tolerance: 10 }) });
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, keepBuffer: 1, updateWhenIdle: true,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  layer = L.layerGroup().addTo(map);
+  map.setView([46.77, 5.62], 13);
+  $("loc").onclick = () => map.locate({ setView: true, maxZoom: 17 });
+}
+
+async function loadAll() {
+  const cols = "id,fid,numero,suffixe,nom_voie,nom_commune,tournee,statut,date_passage,lon,lat,maj_par,maj_le";
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await SB.from("points").select(cols).order("id").range(from, from + 999);
+    if (error) { toast("Erreur : " + error.message); break; }
+    data.forEach(addPoint);
+    if (data.length < 1000) break;
+  }
+  const t = await SB.from("tournees").select("nom").order("nom");
+  tournees = (t.data || []).map(x => x.nom);
+  const used = [...new Set([...items.values()].map(i => i.p.tournee).filter(Boolean))].sort();
+  const names = isAdmin ? tournees : used;
+  $("ftour").innerHTML = `<option value="">${isAdmin ? "Toutes les tournées" : names.length > 1 ? "Mes tournées" : (names[0] || "Aucune tournée")}</option>` +
+    names.map(n => `<option>${esc(n)}</option>`).join("") + (isAdmin ? `<option value="${SANS}">(sans tournée)</option>` : "");
+  $("ftour").onchange = () => refresh(true);
+  ST.forEach(s => {
+    const b = document.createElement("button"); b.className = "chip"; b.dataset.k = s.k; b.style.setProperty("--c", s.c);
+    b.onclick = () => { active.has(s.k) ? active.delete(s.k) : active.add(s.k); refresh(false); };
+    $("chips").appendChild(b);
+  });
+  if (!items.size) toast("Aucun point : demandez à un administrateur de vous affecter une tournée.");
+  refresh(true);
+}
+
+const sty = p => ({ radius: 10, color: "#fff", weight: 2, fillColor: meta(p.statut).c, fillOpacity: .95 });
+const restyle = it => it.m.setStyle(sty(it.p));
+
+function addPoint(p) {
+  const m = L.circleMarker([p.lat, p.lon], sty(p));
+  const it = { p, m };
+  m.bindPopup(() => popup(it), { maxWidth: 300, autoPanPadding: [20, 70] });
+  m.on("popupopen", e => {
+    const el = e.popup.getElement();
+    const s = el.querySelector("#st");
+    s.onchange = () => { s.style.setProperty("--c", meta(s.value).c); setStatut(it, s.value); };
+    const t = el.querySelector("#tr");
+    if (t) t.onchange = async () => {
+      const v = t.value || null;
+      const { error } = await SB.from("points").update({ tournee: v }).eq("id", p.id);
+      if (error) toast(error.message); else { p.tournee = v; toast("Tournée modifiée"); refresh(false); }
+    };
+  });
+  items.set(p.id, it);
+}
+
+function popup(it) {
+  const p = it.p;
+  const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== "").join(" ");
+  const opts = ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("");
+  const adm = isAdmin ? `<label class="sub">Tournée</label><select id="tr" class="pstat"><option value="">(aucune)</option>` +
+    tournees.map(n => `<option${n === p.tournee ? " selected" : ""}>${esc(n)}</option>`).join("") + `</select>` : "";
+  const maj = p.maj_le ? `<div class="sub">Modifié par ${esc(p.maj_par)} le ${new Date(p.maj_le).toLocaleString("fr-FR")}</div>` : "";
+  return `<h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div>
+    <label class="sub" for="st">Statut</label><select id="st" class="pstat" style="--c:${meta(p.statut).c}">${opts}</select>${adm}${maj}`;
+}
+
+/* ---------- Statut + file d'attente hors-ligne ---------- */
+function setStatut(it, v) {
+  it.p.statut = v; it.p.maj_le = new Date().toISOString(); restyle(it); refresh(false);
+  queue = queue.filter(q => q.id !== it.p.id); queue.push({ id: it.p.id, statut: v }); saveQ(); flush();
+}
+async function flush() {
+  if (flush.busy) return; flush.busy = true;
+  while (queue.length) {
+    const q = queue[0];
+    const { error } = await SB.rpc("set_statut", { p_id: q.id, p_statut: q.statut });
+    if (error && (!navigator.onLine || /fetch|network/i.test(error.message))) { toast("Hors-ligne : modification en attente"); break; }
+    if (error) toast("Refusé : " + error.message);
+    queue.shift(); saveQ();
+  }
+  flush.busy = false;
+}
+addEventListener("online", flush);
+
+/* ---------- Filtres ---------- */
+function refresh(fit) {
+  const f = $("ftour").value, n = {}; ST.forEach(s => n[s.k] = 0);
+  const pts = [];
+  items.forEach(it => {
+    const ok = !f || (f === SANS ? !it.p.tournee : it.p.tournee === f);
+    if (ok) n[it.p.statut]++;
+    const show = ok && active.has(it.p.statut);
+    if (show) { if (!layer.hasLayer(it.m)) layer.addLayer(it.m); pts.push(it.m.getLatLng()); } else layer.removeLayer(it.m);
+  });
+  ST.forEach(s => { const b = document.querySelector(`[data-k="${s.k}"]`); if (b) { b.textContent = `${s.l} ${n[s.k]}`; b.classList.toggle("on", active.has(s.k)); } });
+  if (fit && pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+}
+
+/* ---------- Administration ---------- */
+$("adm").onclick = async () => {
+  $("mtour").innerHTML = tournees.map(n => `<option>${esc(n)}</option>`).join("");
+  $("panel").style.display = "block"; listMembres();
+};
+$("pclose").onclick = () => $("panel").style.display = "none";
+async function listMembres() {
+  const { data } = await SB.from("membres").select("email,tournee").order("email").order("tournee");
+  $("mlist").innerHTML = (data || []).map(m => `<div class="mb"><span>${esc(m.email)} · <b>${esc(m.tournee)}</b></span>
+    <button data-e="${esc(m.email)}" data-t="${esc(m.tournee)}">✕</button></div>`).join("") || '<div class="msg">Aucune affectation.</div>';
+  $("mlist").querySelectorAll("button").forEach(b => b.onclick = async () => {
+    await SB.from("membres").delete().eq("email", b.dataset.e).eq("tournee", b.dataset.t); listMembres();
+  });
+}
+$("madd").onclick = async () => {
+  const email = $("memail").value.trim().toLowerCase(); if (!email) return;
+  const { error } = await SB.from("membres").insert({ email, tournee: $("mtour").value });
+  if (error) toast(error.message); else { $("memail").value = ""; listMembres(); }
+};
+</script>
+</body>
+</html>
