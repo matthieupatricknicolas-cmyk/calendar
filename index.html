@@ -244,8 +244,28 @@ const toggle = k => { active.has(k) ? active.delete(k) : active.add(k); refresh(
 const sty = p => ({ radius: 10, color: "#fff", weight: 2, fillColor: meta(p.statut).c, fillOpacity: canEdit(p) ? .95 : .5 });
 const restyle = it => it.m.setStyle(sty(it.p));
 
+/* Étiquette du numéro de rue, dessinée sur le canvas (léger même avec des milliers de points) */
+const LABEL_ZOOM = 17;
+const NumMarker = L.CircleMarker.extend({
+  _updatePath() {
+    L.CircleMarker.prototype._updatePath.call(this);
+    if (!this.label || !this._map || this._map.getZoom() < LABEL_ZOOM || this._empty()) return;
+    const ctx = this._renderer._ctx, x = this._point.x, y = this._point.y - this._radius - 11;
+    ctx.font = "bold 12px system-ui, -apple-system, sans-serif";
+    const w = ctx.measureText(this.label).width + 10, h = 18;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h / 2, w, h, 5); else ctx.rect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = "rgba(17,24,39,.88)"; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(this.label, x, y + .5);
+  }
+});
+const labelOfPoint = p => p.numero === null || p.numero === undefined ? "" : [p.numero, p.suffixe].filter(v => v !== null && v !== "").join(" ");
+
 function addPoint(p) {
-  const m = L.circleMarker([p.lat, p.lon], sty(p));
+  const m = new NumMarker([p.lat, p.lon], sty(p));
+  m.label = labelOfPoint(p);
   const it = { p, m };
   m.bindPopup(() => popup(it), { maxWidth: 300, autoPanPadding: [20, 70] });
   m.on("popupopen", e => {
