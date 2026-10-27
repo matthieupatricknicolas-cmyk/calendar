@@ -63,6 +63,15 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .ar{display:grid;grid-template-columns:1fr minmax(130px,44%);gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
 .ar b{display:block;font-size:14px}.ar small{color:var(--mut);font-size:12px}
 .card .ar select{margin:0;font-size:15px;padding:8px}.ar.free select{border-color:#f59e0b;background:#fffbeb}
+.lnk{display:block;width:100%;background:none;border:0;color:#2563eb;font-size:14px;margin-top:10px;padding:6px}
+.exp{width:100%;margin-top:10px;padding:9px;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;font-size:14px}
+.mo{display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;font-variant-numeric:tabular-nums}
+.mo small{color:var(--mut);margin-left:6px}
+.atools{display:grid;gap:6px;margin:10px 0 2px}
+.atools button{border:1px solid #1f2937;background:#fff;border-radius:8px;padding:9px;font-size:14px}
+.atools button.danger{border-color:#dc2626;color:#dc2626}
+.atools button.armed{background:#1f2937;color:#fff}
+.atools button.danger.armed{background:#dc2626;color:#fff}
 .msg{font-size:13px;color:var(--mut);margin-top:8px}
 .leaflet-popup-content{margin:12px 14px;min-width:220px}
 .leaflet-popup-content h3{margin:0 0 2px;font-size:16px}
@@ -70,6 +79,14 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .pop label{display:block;color:var(--mut);font-size:12.5px;margin-top:8px}
 .pop select,.pop input{width:100%;font-size:16px;padding:8px;border-radius:8px;border:2px solid #d1d5db;background:#fff;margin:2px 0}
 .pop select{border-color:var(--c,#999)}
+.pop .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-right:22px}
+.pop .plus{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:#16a34a;color:#fff;font-size:26px;line-height:1;padding:0;transition:transform .15s}
+.pop .plus.on{background:#6b7280}
+.vform{background:#f3f4f6;border-radius:10px;padding:6px 10px 10px;margin:10px 0 4px}
+.vr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #e5e7eb;font-size:14px}
+.vr small{display:block;color:var(--mut);font-size:12px}
+.vr button{border:0;background:none;color:#dc2626;font-size:14px;padding:4px 8px;border-radius:6px}
+.vr button.armed{background:#dc2626;color:#fff}
 .pop .save{width:100%;margin-top:8px;font-size:16px;padding:10px;border:0;border-radius:8px;background:var(--bar);color:#fff}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3000;display:none;max-width:90vw}
 @media (max-width:899px){
@@ -102,6 +119,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 <div id="panel"><div class="card">
   <div class="row"><h3 style="margin:0">Affectation des tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
   <div class="sub" id="asum" style="margin-top:6px"></div>
+  <div class="atools"><button id="a_rep">⚖ Répartir automatiquement</button><button id="a_clear" class="danger">Retirer toutes les affectations</button></div>
   <div class="afilt"><button id="af_all" class="on">Toutes</button><button id="af_free">Sans binôme</button></div>
   <div id="alist"></div>
   <div class="sub" id="afree" style="margin-top:12px"></div>
@@ -127,8 +145,10 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <div class="donut" id="donut"></div>
       <div class="leg" id="leg"></div>
       <div class="kpis" id="kpis"></div>
-      <h3 class="sec">Saisie par jour</h3>
+      <h3 class="sec">Ventes par jour</h3>
       <div id="days"></div>
+      <h3 class="sec">Par mode de paiement</h3>
+      <div id="modes"></div>
     </aside>
   </div>
 </div>
@@ -152,8 +172,8 @@ const mine = new Set();
 const canEdit = p => isAdmin || (p.tournee && mine.has(p.tournee));
 let isAdmin = false, me = "", map, layer, started = false, tournees = [];
 const items = new Map(), active = new Set(ST.map(s => s.k));
-let queue = []; try { queue = JSON.parse(localStorage.getItem("q2") || "[]"); } catch (e) {}
-const saveQ = () => { try { localStorage.setItem("q2", JSON.stringify(queue)); } catch (e) {} };
+let queue = []; try { queue = JSON.parse(localStorage.getItem("q3") || "[]"); } catch (e) {}
+const saveQ = () => { try { localStorage.setItem("q3", JSON.stringify(queue)); } catch (e) {} };
 
 function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = "none", 3500); }
 
@@ -211,8 +231,15 @@ async function start() {
   initMap();
   await loadAll();
   flush();
-  SB.channel("pts").on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
-    p => { const it = items.get(p.new.id); if (it) { Object.assign(it.p, p.new); restyle(it); refresh(false); } }).subscribe();
+  const touched = pid => { refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen) rerender(openIt); };
+  SB.channel("live")
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
+      p => { const it = items.get(p.new.id); if (it) { Object.assign(it.p, p.new); restyle(it); touched(it.p.id); } })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "ventes" },
+      p => { ventes.set(p.new.id, normV(p.new)); touched(p.new.point_id); })
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "ventes" },
+      p => { const v = ventes.get(p.old.id); ventes.delete(p.old.id); if (v) touched(v.point_id); })
+    .subscribe();
 }
 
 /* ---------- Position GPS (punaise bleue) ---------- */
@@ -260,11 +287,17 @@ function initMap() {
 }
 
 async function loadAll() {
-  const cols = "id,fid,numero,suffixe,nom_voie,nom_commune,tournee,statut,montant,date_passage,lon,lat,maj_par,maj_le";
+  const cols = "id,fid,numero,suffixe,nom_voie,nom_commune,tournee,statut,date_passage,lon,lat,maj_par,maj_le";
   for (let from = 0; ; from += 1000) {
     const { data, error } = await SB.from("points").select(cols).order("id").range(from, from + 999);
     if (error) { toast("Erreur : " + error.message); break; }
     data.forEach(addPoint);
+    if (data.length < 1000) break;
+  }
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await SB.from("ventes").select("id,point_id,montant,mode,jour,par,cree_le").order("cree_le").range(from, from + 999);
+    if (error) { toast("Erreur ventes : " + error.message); break; }
+    data.forEach(v => ventes.set(v.id, normV(v)));
     if (data.length < 1000) break;
   }
   const t = await SB.from("tournees").select("nom").order("nom");
@@ -304,62 +337,100 @@ const NumMarker = L.CircleMarker.extend({
 });
 const labelOfPoint = p => p.numero === null || p.numero === undefined ? "" : [p.numero, p.suffixe].filter(v => v !== null && v !== "").join(" ");
 
+const uuid = () => crypto.randomUUID ? crypto.randomUUID()
+  : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+const MODES = [{ k: "especes", l: "Espèces", i: "💶" }, { k: "cheque", l: "Chèque", i: "🧾" }, { k: "cb", l: "CB", i: "💳" }];
+const modeOf = k => MODES.find(m => m.k === k) || MODES[0];
+const ventes = new Map();
+const normV = v => ({ id: v.id, point_id: v.point_id, montant: Number(v.montant), mode: v.mode, jour: v.jour, par: v.par, cree_le: v.cree_le });
+const ventesOf = pid => [...ventes.values()].filter(v => v.point_id === pid).sort((a, b) => String(a.cree_le).localeCompare(String(b.cree_le)));
+let openIt = null, lastMode = "especes";
+
 function addPoint(p) {
   const m = new NumMarker([p.lat, p.lon], sty(p));
   m.label = labelOfPoint(p);
-  const it = { p, m };
-  m.bindPopup(() => popup(it), { maxWidth: 300, autoPanPadding: [20, 70] });
-  m.on("popupopen", e => {
-    const el = e.popup.getElement(), s = el.querySelector("#st"), mt = el.querySelector("#mt");
-    if (!s) return;
-    s.onchange = () => s.style.setProperty("--c", meta(s.value).c);
-    el.querySelector("#sv").onclick = () => {
-      const raw = mt.value.trim().replace(/\s/g, "").replace(",", ".");
-      const montant = raw === "" ? null : Number(raw);
-      if (montant !== null && (!isFinite(montant) || montant < 0 || montant >= 100000)) { toast("Montant invalide"); return; }
-      save(it, s.value, montant === null ? null : Math.round(montant * 100) / 100);
-      m.closePopup();
-    };
-  });
+  const it = { p, m, addOpen: false };
+  m.bindPopup(() => popupHtml(it), { minWidth: 240, maxWidth: 300, maxHeight: 440, autoPanPadding: [20, 70] });
+  m.on("popupopen", () => { openIt = it; wire(it); });
+  m.on("popupclose", () => { if (openIt === it) openIt = null; it.addOpen = false; });
   items.set(p.id, it);
 }
+const rerender = it => { const pp = it.m.getPopup(); if (pp && pp.isOpen()) { pp.update(); wire(it); } };
 
 const maj0 = p => p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(who(p.maj_par))}</div>` : "";
-function popup(it) {
-  const p = it.p;
-  const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== "").join(" ");
-  if (!canEdit(p)) {
-    const m = meta(p.statut);
-    return `<div class="pop"><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div>
-      <div style="margin-top:8px"><span class="dot" style="background:${m.c};display:inline-block;vertical-align:-1px"></span> <b>${m.l}</b></div>
-      <div>Montant : <b>${p.montant === null || p.montant === undefined ? "—" : EUR.format(p.montant)}</b></div>
-      ${maj0(p)}<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div></div>`;
-  }
-  const opts = ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("");
-  const maj = p.maj_le ? `<div class="sub" style="margin-top:8px">Dernière modification : ${fmtDay(p.date_passage || p.maj_le.slice(0, 10))} · ${esc(who(p.maj_par))}</div>` : "";
-  return `<div class="pop"><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div>
-    <label for="st">Statut</label><select id="st" style="--c:${meta(p.statut).c}">${opts}</select>
-    <label for="mt">Montant (€)</label><input id="mt" type="text" inputmode="decimal" placeholder="0,00" value="${p.montant === null || p.montant === undefined ? "" : String(p.montant).replace(".", ",")}">
-    <button class="save" id="sv">Enregistrer</button>${maj}</div>`;
+function popupHtml(it) {
+  const p = it.p, edit = canEdit(p), vs = ventesOf(p.id), tot = vs.reduce((a, v) => a + v.montant, 0), m = meta(p.statut);
+  const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== undefined && v !== "").join(" ");
+  const head = `<div class="top"><div><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div></div>` +
+    (edit ? `<button class="plus${it.addOpen ? " on" : ""}" id="pl" aria-label="Ajouter une vente">${it.addOpen ? "−" : "＋"}</button>` : "") + `</div>`;
+  const form = edit && it.addOpen ? `<div class="vform"><label for="vm">Montant (€)</label><input id="vm" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
+    <label for="vp">Paiement</label><select id="vp">${MODES.map(x => `<option value="${x.k}"${x.k === lastMode ? " selected" : ""}>${x.i} ${x.l}</option>`).join("")}</select>
+    <button class="save" id="vs">Enregistrer la vente</button></div>` : "";
+  const list = vs.length ? `<label>Ventes à cette adresse (${vs.length}${vs.length > 1 ? " · " + EUR.format(tot) : ""})</label>` +
+    vs.map(v => `<div class="vr"><div><b>${EUR.format(v.montant)}</b> · ${modeOf(v.mode).i} ${modeOf(v.mode).l}<small>${esc(who(v.par))} · ${fmtDay(v.jour)}</small></div>` +
+      (edit ? `<button data-del="${v.id}" aria-label="Supprimer la vente">✕</button>` : "") + `</div>`).join("") : "";
+  const stat = edit
+    ? `<label for="st">Statut</label><select id="st" style="--c:${m.c}">${ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("")}</select>`
+    : `<div style="margin-top:8px"><span class="dot" style="background:${m.c};display:inline-block;vertical-align:-1px"></span> <b>${m.l}</b></div>`;
+  return `<div class="pop">${head}${form}${list}${stat}${maj0(p)}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
+}
+
+function wire(it) {
+  const pp = it.m.getPopup(), el = pp && pp.getElement(); if (!el) return;
+  const pl = el.querySelector("#pl"); if (!pl) return; // lecture seule
+  pl.onclick = e => { e.stopPropagation(); it.addOpen = !it.addOpen; rerender(it); const i = it.addOpen && it.m.getPopup().getElement().querySelector("#vm"); if (i) i.focus(); };
+  const st = el.querySelector("#st"); st.onchange = () => setStatut(it, st.value);
+  const vs = el.querySelector("#vs");
+  if (vs) vs.onclick = e => {
+    e.stopPropagation();
+    const raw = el.querySelector("#vm").value.trim().replace(/\s/g, "").replace(",", "."), montant = Number(raw);
+    if (!raw || !isFinite(montant) || montant <= 0 || montant >= 10000) { toast("Montant invalide (entre 0,01 et 9 999,99)"); return; }
+    addVente(it, Math.round(montant * 100) / 100, el.querySelector("#vp").value);
+  };
+  el.querySelectorAll("[data-del]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Supprimer ?"; setTimeout(() => { b.classList.remove("armed"); b.textContent = "✕"; }, 4000); return; }
+    delVente(it, b.dataset.del);
+  });
 }
 
 /* ---------- Saisie + file d'attente hors-ligne ---------- */
-function save(it, statut, montant) {
+function setStatut(it, statut) {
   if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
-  Object.assign(it.p, { statut, montant, date_passage: parisDay(), maj_le: new Date().toISOString(), maj_par: me });
-  restyle(it); refresh(false);
-  queue = queue.filter(q => q.id !== it.p.id); queue.push({ id: it.p.id, statut, montant }); saveQ(); flush();
+  Object.assign(it.p, { statut, date_passage: parisDay(), maj_le: new Date().toISOString(), maj_par: me });
+  queue = queue.filter(q => !(q.k === "statut" && q.id === it.p.id)); queue.push({ k: "statut", id: it.p.id, statut }); saveQ();
+  restyle(it); refresh(false); rerender(it); flush();
+}
+function addVente(it, montant, mode) {
+  if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
+  lastMode = mode;
+  const v = { id: uuid(), point_id: it.p.id, montant, mode, jour: parisDay(), par: me, cree_le: new Date().toISOString() };
+  ventes.set(v.id, v);
+  Object.assign(it.p, { statut: "fait", date_passage: v.jour, maj_le: v.cree_le, maj_par: me }); // une vente passe le point à « fait »
+  queue = queue.filter(q => !(q.k === "statut" && q.id === it.p.id));
+  queue.push({ k: "vente", id: v.id, point: it.p.id, montant, mode }); saveQ();
+  restyle(it); refresh(false); rerender(it); flush(); toast("Vente ajoutée : " + EUR.format(montant));
+}
+function delVente(it, id) {
+  ventes.delete(id);
+  const waiting = queue.some(q => q.k === "vente" && q.id === id && q !== flush.cur);
+  queue = queue.filter(q => !(q.k === "vente" && q.id === id && q !== flush.cur));
+  if (!waiting) queue.push({ k: "del", id });
+  saveQ(); refresh(false); rerender(it); flush();
 }
 async function flush() {
   if (flush.busy) return; flush.busy = true;
   while (queue.length) {
-    const q = queue[0];
-    const { error } = await SB.rpc("set_saisie", { p_id: q.id, p_statut: q.statut, p_montant: q.montant });
+    const q = flush.cur = queue[0];
+    const { error } = await (q.k === "statut" ? SB.rpc("set_statut", { p_id: q.id, p_statut: q.statut })
+      : q.k === "vente" ? SB.rpc("ajouter_vente", { p_id: q.id, p_point: q.point, p_montant: q.montant, p_mode: q.mode })
+      : SB.rpc("supprimer_vente", { p_id: q.id }));
+    flush.cur = null;
     if (error && (!navigator.onLine || /fetch|network/i.test(error.message))) { toast("Hors-ligne : modification en attente"); break; }
-    if (error) toast("Refusé : " + error.message);
-    queue.shift(); saveQ();
+    if (error) { toast("Refusé : " + error.message); if (q.k === "vente") { ventes.delete(q.id); refresh(false); if (openIt) rerender(openIt); } }
+    const i = queue.indexOf(q); if (i >= 0) queue.splice(i, 1); saveQ();
   }
-  flush.busy = false;
+  flush.cur = null; flush.busy = false;
 }
 addEventListener("online", flush);
 
@@ -378,18 +449,17 @@ function refresh(fit) {
 
 const labelOf = f => f === SANS ? "Sans tournée" : f === MINE ? "Mes tournées" : f || "Toutes les tournées";
 function dashboard(f) {
-  const n = {}; ST.forEach(s => n[s.k] = 0);
-  const days = new Map(); let total = 0, sumF = 0, sumAll = 0;
-  items.forEach(({ p }) => {
-    const done = p.statut !== "a_faire" && p.date_passage;
-    const m = Number(p.montant) || 0;
-    if (done) sumAll += m;
-    if (!inFilter(p, f)) return;
-    total++; n[p.statut]++;
-    if (done) {
-      sumF += m;
-      const d = days.get(p.date_passage) || { n: 0, sum: 0 }; d.n++; d.sum += m; days.set(p.date_passage, d);
-    }
+  const n = {}; ST.forEach(s => n[s.k] = 0); let total = 0;
+  items.forEach(({ p }) => { if (!inFilter(p, f)) return; total++; n[p.statut]++; });
+  const days = new Map(), modes = {}; MODES.forEach(m => modes[m.k] = { n: 0, s: 0 });
+  let sumF = 0, nbF = 0, sumAll = 0;
+  ventes.forEach(v => {
+    const it = items.get(v.point_id); if (!it) return;
+    sumAll += v.montant;
+    if (!inFilter(it.p, f)) return;
+    sumF += v.montant; nbF++;
+    const d = days.get(v.jour) || { n: 0, sum: 0 }; d.n++; d.sum += v.montant; days.set(v.jour, d);
+    const md = modes[v.mode]; if (md) { md.n++; md.s += v.montant; }
   });
   ST.forEach(s => { const b = document.querySelector(`.chip[data-k="${s.k}"]`); if (b) { b.textContent = `${s.l} ${n[s.k]}`; b.classList.toggle("on", active.has(s.k)); } });
 
@@ -414,16 +484,19 @@ function dashboard(f) {
   $("leg").querySelectorAll("button").forEach(b => b.onclick = () => toggle(b.dataset.k));
 
   $("kpis").innerHTML = `<div class="kpi"><b>${EUR.format(sumF)}</b><span>${f ? "Total " + esc(label) : "Total global"}</span></div>
-    <div class="kpi"><b>${f ? EUR.format(sumAll) : total - n.a_faire}</b><span>${f ? "Total global" : "points traités"}</span></div>`;
+    <div class="kpi"><b>${f ? EUR.format(sumAll) : nbF}</b><span>${f ? "Total global" : "ventes"}</span></div>`;
 
-  // somme par jour
+  // ventes par jour
   const rows = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const max = Math.max(1, ...rows.map(([, d]) => d.sum));
   $("days").innerHTML = rows.length
     ? rows.map(([d, v]) => `<div class="day"><span>${fmtDay(d)}</span><div class="bar"><i style="width:${Math.max(3, v.sum / max * 100)}%"></i></div>
-        <span class="v">${EUR.format(v.sum)}<small>${v.n} pt${v.n > 1 ? "s" : ""}</small></span></div>`).join("") +
-      `<div class="tot"><span>Total${f ? " · " + esc(label) : ""}</span><span>${EUR.format(sumF)}</span></div>`
-    : `<div class="empty">Aucune saisie pour le moment.</div><div class="tot"><span>Total</span><span>${EUR.format(0)}</span></div>`;
+        <span class="v">${EUR.format(v.sum)}<small>${v.n} vente${v.n > 1 ? "s" : ""}</small></span></div>`).join("") +
+      `<div class="tot"><span>Total${f ? " · " + esc(label) : ""} (${nbF})</span><span>${EUR.format(sumF)}</span></div>`
+    : `<div class="empty">Aucune vente pour le moment.</div><div class="tot"><span>Total</span><span>${EUR.format(0)}</span></div>`;
+
+  // modes de paiement
+  $("modes").innerHTML = MODES.map(m => `<div class="mo"><span>${m.i} ${m.l}</span><span>${EUR.format(modes[m.k].s)}<small>${modes[m.k].n} vente${modes[m.k].n > 1 ? "s" : ""}</small></span></div>`).join("");
 }
 
 /* ---------- Export tableur ---------- */
@@ -436,39 +509,49 @@ $("exp").onclick = async () => {
   const cmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "fr", { numeric: true });
   const pts = [...items.values()].map(i => i.p).filter(p => inFilter(p, f))
     .sort((a, b) => cmp(a.tournee, b.tournee) || cmp(a.nom_commune, b.nom_commune) || cmp(a.nom_voie, b.nom_voie) || cmp(a.numero, b.numero) || cmp(a.suffixe, b.suffixe));
+  const ids = new Set(pts.map(p => p.id)), r2 = x => Math.round(x * 100) / 100;
+  const adr = p => [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== undefined && v !== "").join(" ");
   const dt = d => d ? new Date(d + "T12:00:00") : "";
-  const head = ["Tournée", "Commune", "Numéro", "Suffixe", "Voie", "Statut", "Montant (€)", "Date dernière modification", "Modifié par", "Latitude", "Longitude"];
-  const rows = pts.map(p => [p.tournee || "", p.nom_commune || "", p.numero ?? "", p.suffixe || "", p.nom_voie || "", meta(p.statut).l,
-    p.montant === null || p.montant === undefined ? "" : Number(p.montant), dt(p.date_passage), who(p.maj_par), p.lat, p.lon]);
-  const jours = new Map(); let tot = 0, nb = 0;
-  pts.forEach(p => { if (p.statut !== "a_faire" && p.date_passage) {
-    const m = Number(p.montant) || 0, d = jours.get(p.date_passage) || { n: 0, s: 0 }; d.n++; d.s += m; jours.set(p.date_passage, d); tot += m; nb++; } });
-  const jrows = [...jours.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => [dt(d), v.n, Math.round(v.s * 100) / 100]);
-  jrows.push(["Total", nb, Math.round(tot * 100) / 100]);
+  const vs = [...ventes.values()].filter(v => ids.has(v.point_id)).sort((a, b) => a.jour.localeCompare(b.jour) || String(a.cree_le).localeCompare(String(b.cree_le)));
+  const perPt = new Map(), jours = new Map();
+  vs.forEach(v => {
+    const x = perPt.get(v.point_id) || { n: 0, s: 0 }; x.n++; x.s += v.montant; perPt.set(v.point_id, x);
+    const j = jours.get(v.jour) || { n: 0, t: 0, especes: 0, cheque: 0, cb: 0 }; j.n++; j.t += v.montant; j[v.mode] += v.montant; jours.set(v.jour, j);
+  });
+  const head = ["Tournée", "Commune", "Numéro", "Suffixe", "Voie", "Statut", "Nb ventes", "Montant total (€)", "Date dernière modification", "Modifié par", "Latitude", "Longitude"];
+  const rows = pts.map(p => { const x = perPt.get(p.id);
+    return [p.tournee || "", p.nom_commune || "", p.numero ?? "", p.suffixe || "", p.nom_voie || "", meta(p.statut).l, x ? x.n : 0, x ? r2(x.s) : "", dt(p.date_passage), who(p.maj_par), p.lat, p.lon]; });
+  const vhead = ["Date", "Tournée", "Commune", "Adresse", "Montant (€)", "Mode de paiement", "Vendu par"];
+  const vrows = vs.map(v => { const p = items.get(v.point_id).p; return [dt(v.jour), p.tournee || "", p.nom_commune || "", adr(p), v.montant, modeOf(v.mode).l, who(v.par)]; });
+  const jhead = ["Date", "Ventes", "Montant (€)", "Espèces (€)", "Chèque (€)", "CB (€)"];
+  const jrows = [...jours.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => [dt(d), v.n, r2(v.t), r2(v.especes), r2(v.cheque), r2(v.cb)]);
+  const T = k => r2(vs.reduce((a, v) => a + (k === "t" ? v.montant : v.mode === k ? v.montant : 0), 0));
+  jrows.push(["Total", vs.length, T("t"), T("especes"), T("cheque"), T("cb")]);
   const nom = `calendrier_2026_${label.replace(/[^\w-]+/g, "_")}_${parisDay()}`;
   try {
     await loadXlsx();
+    const mk = (aoa, widths, dateCols, moneyCols) => {
+      const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
+      for (let r = 1; r < aoa.length; r++) {
+        dateCols.forEach(c => { const x = ws[XLSX.utils.encode_cell({ r, c })]; if (x && x.t === "d") x.z = "dd/mm/yyyy"; });
+        moneyCols.forEach(c => { const x = ws[XLSX.utils.encode_cell({ r, c })]; if (x && x.t === "n") x.z = "#,##0.00"; });
+      }
+      ws["!cols"] = widths.map(w => ({ wch: w }));
+      ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(aoa.length - 1, 0), c: aoa[0].length - 1 } }) };
+      return ws;
+    };
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([head, ...rows], { cellDates: true });
-    rows.forEach((_, i) => {
-      const m = ws["G" + (i + 2)], d = ws["H" + (i + 2)];
-      if (m && m.t === "n") m.z = "#,##0.00"; if (d && d.t === "d") d.z = "dd/mm/yyyy";
-    });
-    ws["!cols"] = [14, 20, 8, 8, 30, 10, 12, 22, 16, 11, 11].map(w => ({ wch: w }));
-    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: head.length - 1 } }) };
-    XLSX.utils.book_append_sheet(wb, ws, "Points");
-    const wj = XLSX.utils.aoa_to_sheet([["Date", "Points traités", "Montant (€)"], ...jrows], { cellDates: true });
-    jrows.forEach((_, i) => { const d = wj["A" + (i + 2)], m = wj["C" + (i + 2)]; if (d && d.t === "d") d.z = "dd/mm/yyyy"; if (m) m.z = "#,##0.00"; });
-    wj["!cols"] = [14, 14, 14].map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, wj, "Par jour");
+    XLSX.utils.book_append_sheet(wb, mk([head, ...rows], [14, 20, 8, 8, 30, 10, 10, 16, 22, 16, 11, 11], [8], [7]), "Points");
+    XLSX.utils.book_append_sheet(wb, mk([vhead, ...vrows], [12, 14, 20, 34, 12, 18, 16], [0], [4]), "Ventes");
+    XLSX.utils.book_append_sheet(wb, mk([jhead, ...jrows], [12, 8, 13, 13, 13, 13], [0], [2, 3, 4, 5]), "Par jour");
     XLSX.writeFile(wb, nom + ".xlsx", { cellDates: true });
   } catch (e) {
-    // hors-ligne : repli en CSV (ouvrable dans Excel / LibreOffice)
+    // hors-ligne : repli en CSV des ventes (ouvrable dans Excel / LibreOffice)
     const fmt = v => v instanceof Date ? v.toLocaleDateString("fr-FR") : typeof v === "number" ? String(v).replace(".", ",") : v;
-    const csv = [head, ...rows].map(r => r.map(v => `"${String(fmt(v)).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const csv = [vhead, ...vrows].map(r => r.map(v => `"${String(fmt(v)).replace(/"/g, '""')}"`).join(";")).join("\r\n");
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); a.download = nom + ".csv"; a.click();
-    toast("Hors-ligne : export CSV");
+    a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); a.download = nom + "_ventes.csv"; a.click();
+    toast("Hors-ligne : export CSV des ventes");
   }
 };
 
@@ -514,6 +597,35 @@ async function affecter(t, email) {
   if (email) adm.owner.set(t, email); else adm.owner.delete(t);
   renderAdmin(); toast(`${t} → ${email ? who(email) : "sans binôme"}`);
 }
+let armed = null;
+function disarm() { if (!armed) return; clearTimeout(armed.t); armed.btn.textContent = armed.btn.dataset.l; armed.btn.classList.remove("armed"); armed = null; }
+function arm(btn, label, fn) {
+  if (armed && armed.btn === btn) { disarm(); fn(); return; }   // second appui = confirmation
+  disarm(); btn.dataset.l = btn.dataset.l || btn.textContent; btn.textContent = label; btn.classList.add("armed");
+  armed = { btn, t: setTimeout(disarm, 6000) };
+}
+$("a_rep").onclick = () => {
+  if (!isAdmin) return;
+  const free = tournees.filter(t => !adm.owner.has(t)).length;
+  const taken = new Set(adm.owner.values()), idle = adm.users.filter(e => !taken.has(e)).length;
+  if (!free) { toast("Toutes les tournées ont déjà un binôme"); return; }
+  if (!idle) { toast("Aucun binôme sans tournée : rien à répartir"); return; }
+  arm($("a_rep"), `Confirmer : ${free} tournée${free > 1 ? "s" : ""} → ${idle} binôme${idle > 1 ? "s" : ""} ?`, async () => {
+    const { data, error } = await SB.rpc("repartir_tournees");
+    if (error) toast(error.message); else toast(`${data} tournée${data > 1 ? "s" : ""} réparties`);
+    await loadAdmin();
+  });
+};
+$("a_clear").onclick = () => {
+  if (!isAdmin) return;
+  if (!adm.owner.size) { toast("Aucune affectation à retirer"); return; }
+  arm($("a_clear"), `Confirmer : retirer les ${adm.owner.size} affectation${adm.owner.size > 1 ? "s" : ""} ?`, async () => {
+    const { error } = await SB.rpc("retirer_affectations");
+    if (error) toast(error.message); else toast("Toutes les affectations ont été retirées");
+    await loadAdmin();
+  });
+};
+$("pclose").addEventListener("click", disarm);
 $("af_all").onclick = () => { adm.onlyFree = false; renderAdmin(); };
 $("af_free").onclick = () => { adm.onlyFree = true; renderAdmin(); };
 </script>
