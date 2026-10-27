@@ -362,8 +362,8 @@ function popupHtml(it) {
   const p = it.p, edit = canEdit(p), vs = ventesOf(p.id), tot = vs.reduce((a, v) => a + v.montant, 0), m = meta(p.statut);
   const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== undefined && v !== "").join(" ");
   const head = `<div class="top"><div><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div></div>` +
-    (edit ? `<button class="plus${it.addOpen ? " on" : ""}" id="pl" aria-label="Ajouter une vente">${it.addOpen ? "−" : "＋"}</button>` : "") + `</div>`;
-  const form = edit && it.addOpen ? `<div class="vform"><label for="vm">Montant (€)</label><input id="vm" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
+    (edit && vs.length ? `<button class="plus${it.addOpen ? " on" : ""}" id="pl" aria-label="Ajouter une vente">${it.addOpen ? "−" : "＋"}</button>` : "") + `</div>`;
+  const form = edit && (!vs.length || it.addOpen) ? `<div class="vform"><label for="vm">Montant (€)</label><input id="vm" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
     <label for="vp">Paiement</label><select id="vp">${MODES.map(x => `<option value="${x.k}"${x.k === lastMode ? " selected" : ""}>${x.i} ${x.l}</option>`).join("")}</select>
     <button class="save" id="vs">Enregistrer la vente</button></div>` : "";
   const list = vs.length ? `<label>Ventes à cette adresse (${vs.length}${vs.length > 1 ? " · " + EUR.format(tot) : ""})</label>` +
@@ -377,9 +377,10 @@ function popupHtml(it) {
 
 function wire(it) {
   const pp = it.m.getPopup(), el = pp && pp.getElement(); if (!el) return;
-  const pl = el.querySelector("#pl"); if (!pl) return; // lecture seule
-  pl.onclick = e => { e.stopPropagation(); it.addOpen = !it.addOpen; rerender(it); const i = it.addOpen && it.m.getPopup().getElement().querySelector("#vm"); if (i) i.focus(); };
-  const st = el.querySelector("#st"); st.onchange = () => setStatut(it, st.value);
+  const st = el.querySelector("#st"); if (!st) return; // lecture seule
+  st.onchange = () => setStatut(it, st.value);
+  const pl = el.querySelector("#pl"); // « ＋ » : uniquement pour ajouter un calendrier de plus à l'adresse
+  if (pl) pl.onclick = e => { e.stopPropagation(); it.addOpen = !it.addOpen; rerender(it); const i = it.addOpen && it.m.getPopup().getElement().querySelector("#vm"); if (i) i.focus(); };
   const vs = el.querySelector("#vs");
   if (vs) vs.onclick = e => {
     e.stopPropagation();
@@ -403,7 +404,7 @@ function setStatut(it, statut) {
 }
 function addVente(it, montant, mode) {
   if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
-  lastMode = mode;
+  lastMode = mode; it.addOpen = false;
   const v = { id: uuid(), point_id: it.p.id, montant, mode, jour: parisDay(), par: me, cree_le: new Date().toISOString() };
   ventes.set(v.id, v);
   Object.assign(it.p, { statut: "fait", date_passage: v.jour, maj_le: v.cree_le, maj_par: me }); // une vente passe le point à « fait »
