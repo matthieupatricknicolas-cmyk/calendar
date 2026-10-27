@@ -88,6 +88,26 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .vr button{border:0;background:none;color:#dc2626;font-size:14px;padding:4px 8px;border-radius:6px}
 .vr button.armed{background:#dc2626;color:#fff}
 .pop .save{width:100%;margin-top:8px;font-size:16px;padding:10px;border:0;border-radius:8px;background:var(--bar);color:#fff}
+.tabs{display:flex;gap:2px;margin:12px 0 8px;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;background:none;padding:10px 2px;font-size:14.5px;border-bottom:3px solid transparent;color:var(--mut)}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--bar);font-weight:600}
+.pane[hidden],.sub2[hidden]{display:none}
+.frow{display:flex;gap:8px}.frow>*{flex:1;min-width:0}.frow>.nar{flex:0 0 84px}
+.card input[type=checkbox]{width:auto;margin:0 8px 0 0}
+.chk{display:flex;align-items:center;font-size:14px;margin:6px 0}
+.card h4{margin:14px 0 2px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.card details{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:10px 0}
+.card summary{font-weight:600;font-size:14.5px}
+.tr{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.tr b{display:block;font-size:14px}.tr small{color:var(--mut);font-size:12px}
+.tr input{margin:0}
+.ib{border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:7px 10px;font-size:15px;min-width:40px}
+.ib.dng{border-color:#dc2626;color:#dc2626}.ib.armed{background:#dc2626;color:#fff}
+.res{display:grid;gap:4px;margin:6px 0}.res button{text-align:left;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 10px;font-size:14px}
+.res small{color:var(--mut);display:block;font-size:12px}
+.card button.sec2{width:100%;font-size:15px;padding:10px;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;margin-top:6px}
+#pickbar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;right:8px;z-index:2500;background:#7c3aed;color:#fff;border-radius:12px;padding:10px 12px;display:none;align-items:center;gap:10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+#pickbar button{margin-left:auto;border:0;background:#fff;color:#7c3aed;border-radius:8px;padding:6px 10px;font-size:14px}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3000;display:none;max-width:90vw}
 @media (max-width:899px){
   #dbtn{display:inline-block}
@@ -117,13 +137,63 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 </div></div>
 
 <div id="panel"><div class="card">
-  <div class="row"><h3 style="margin:0">Affectation des tournées</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
-  <div class="sub" id="asum" style="margin-top:6px"></div>
-  <div class="atools"><button id="a_rep">⚖ Répartir automatiquement</button><button id="a_clear" class="danger">Retirer toutes les affectations</button></div>
-  <div class="afilt"><button id="af_all" class="on">Toutes</button><button id="af_free">Sans binôme</button></div>
-  <div id="alist"></div>
-  <div class="sub" id="afree" style="margin-top:12px"></div>
+  <div class="row"><h3 style="margin:0">Administration</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
+  <div class="tabs"><button data-tab="aff" class="on">Affectation</button><button data-tab="tou">Tournées</button><button data-tab="adr">Adresses</button></div>
+
+  <section class="pane" id="tab_aff">
+    <div class="sub" id="asum"></div>
+    <div class="atools"><button id="a_rep">⚖ Répartir automatiquement</button><button id="a_clear" class="danger">Retirer toutes les affectations</button></div>
+    <div class="afilt"><button id="af_all" class="on">Toutes</button><button id="af_free">Sans binôme</button></div>
+    <div id="alist"></div>
+    <div class="sub" id="afree" style="margin-top:12px"></div>
+  </section>
+
+  <section class="pane" id="tab_tou" hidden>
+    <div class="sub" id="t_sum"></div>
+    <h4>Nouvelle tournée</h4>
+    <div class="frow"><input id="t_new" type="text" placeholder="Nom de la tournée" maxlength="60" autocomplete="off"><button class="go nar" id="t_add" style="margin:6px 0;flex:0 0 96px">Créer</button></div>
+    <details id="g_det"><summary>Affecter des adresses à une tournée</summary>
+      <label class="sub" for="g_dest">Tournée de destination</label><select id="g_dest"></select>
+      <div class="frow"><div><label class="sub" for="g_com">Commune</label><select id="g_com"></select></div>
+        <div><label class="sub" for="g_par">Numéros</label><select id="g_par"><option value="">Tous</option><option value="pair">Pairs</option><option value="impair">Impairs</option></select></div></div>
+      <label class="sub" for="g_voie">Rue (contient)</label><input id="g_voie" type="text" list="dl_voie" placeholder="ex. rue de la saive" autocomplete="off">
+      <div class="frow"><div><label class="sub" for="g_de">N° de</label><input id="g_de" type="number" inputmode="numeric" min="0"></div>
+        <div><label class="sub" for="g_a">à</label><input id="g_a" type="number" inputmode="numeric" min="0"></div></div>
+      <label class="chk"><input id="g_free" type="checkbox">Seulement les adresses sans tournée</label>
+      <div class="msg" id="g_cnt"></div>
+      <button class="go" id="g_go">Affecter ces adresses</button>
+    </details>
+    <h4>Tournées</h4>
+    <div id="t_list"></div>
+  </section>
+
+  <section class="pane" id="tab_adr" hidden>
+    <div class="afilt"><button id="s_add" class="on">Ajouter</button><button id="s_del">Supprimer</button></div>
+    <div class="sub2" id="sub_add">
+      <h4>Rechercher une adresse</h4>
+      <div class="frow"><input id="n_q" type="text" placeholder="ex. 12 rue de la Saive Voiteur" autocomplete="off"><button class="go nar" id="n_go" style="margin:6px 0;flex:0 0 96px">Chercher</button></div>
+      <div class="res" id="n_res"></div>
+      <h4>Adresse</h4>
+      <div class="frow"><input id="n_num" type="number" inputmode="numeric" min="0" placeholder="N°"><input id="n_suf" type="text" placeholder="bis, ter…" maxlength="10" autocomplete="off"></div>
+      <input id="n_voie" type="text" list="dl_voie" placeholder="Rue" autocomplete="off">
+      <input id="n_com" type="text" list="dl_com" placeholder="Commune" autocomplete="off">
+      <select id="n_tour"></select>
+      <h4>Position</h4>
+      <div class="frow"><input id="n_lat" type="text" inputmode="decimal" placeholder="Latitude"><input id="n_lon" type="text" inputmode="decimal" placeholder="Longitude"></div>
+      <button class="sec2" id="n_pick">📍 Choisir sur la carte</button>
+      <button class="go" id="n_create">Créer l'adresse</button>
+    </div>
+    <div class="sub2" id="sub_del" hidden>
+      <h4>Rechercher</h4>
+      <input id="d_q" type="text" placeholder="Rue, numéro ou commune" autocomplete="off">
+      <select id="d_tour"></select>
+      <div class="msg" id="d_cnt"></div>
+      <div id="d_list"></div>
+    </div>
+  </section>
+  <datalist id="dl_voie"></datalist><datalist id="dl_com"></datalist>
 </div></div>
+<div id="pickbar"><span>Touchez la carte pour placer l'adresse</span><button id="pickcancel">Annuler</button></div>
 
 <div id="app">
   <header>
@@ -234,7 +304,14 @@ async function start() {
   const touched = pid => { refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen) rerender(openIt); };
   SB.channel("live")
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
-      p => { const it = items.get(p.new.id); if (it) { Object.assign(it.p, p.new); restyle(it); touched(it.p.id); } })
+      p => {
+        const it = items.get(p.new.id);
+        if (it) { Object.assign(it.p, p.new); restyle(it); touched(it.p.id); }
+        if (p.new.tournee && !tournees.includes(p.new.tournee)) { tournees.push(p.new.tournee); fillTournees(); }
+      })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "points" },
+      p => { if (!items.has(p.new.id)) { addPoint(p.new); refresh(false); } })
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "points" }, p => removePoint(p.old.id))
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "ventes" },
       p => { ventes.set(p.new.id, normV(p.new)); touched(p.new.point_id); })
     .on("postgres_changes", { event: "DELETE", schema: "public", table: "ventes" },
@@ -302,9 +379,7 @@ async function loadAll() {
   }
   const t = await SB.from("tournees").select("nom").order("nom");
   tournees = (t.data || []).map(x => x.nom);
-  $("ftour").innerHTML = (isAdmin ? "" : `<option value="${MINE}">Mes tournées</option>`) + `<option value="">Toutes les tournées</option>` +
-    tournees.map(n => `<option value="${esc(n)}">${!isAdmin && mine.has(n) ? "★ " : ""}${esc(n)}</option>`).join("") + `<option value="${SANS}">(sans tournée)</option>`;
-  $("ftour").value = isAdmin ? "" : MINE;
+  fillTournees(true);
   $("ftour").onchange = () => refresh(true);
   ST.forEach(s => {
     const b = document.createElement("button"); b.className = "chip"; b.dataset.k = s.k; b.style.setProperty("--c", s.c);
@@ -559,24 +634,72 @@ $("exp").onclick = async () => {
 $("dbtn").onclick = () => $("dash").classList.add("open");
 $("dclose").onclick = () => $("dash").classList.remove("open");
 
-/* ---------- Administration : une tournée = un binôme ---------- */
-const adm = { users: [], owner: new Map(), onlyFree: false };
+/* ---------- Administration (onglets : affectation · tournées · adresses) ---------- */
+const adm = { users: [], owner: new Map(), onlyFree: false, tab: "aff", edit: null };
+const NONE = "__none__";
 const natural = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
-$("adm").onclick = async () => { $("panel").style.display = "block"; await loadAdmin(); };
-$("pclose").onclick = () => $("panel").style.display = "none";
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const plur = (n, a, b) => n > 1 ? b : a;
+const titreOf = p => [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== undefined && v !== "").join(" ");
+function tourStats() {
+  const st = new Map();
+  items.forEach(({ p }) => { if (!p.tournee) return; const v = st.get(p.tournee) || { n: 0, d: 0 }; v.n++; if (p.statut !== "a_faire") v.d++; st.set(p.tournee, v); });
+  return st;
+}
+const sortedT = () => [...tournees].sort(natural);
+
+function fillTournees(init, keep) {
+  const sel = $("ftour"), cur = keep !== undefined ? keep : sel.value;
+  sel.innerHTML = (isAdmin ? "" : `<option value="${MINE}">Mes tournées</option>`) + `<option value="">Toutes les tournées</option>` +
+    tournees.map(n => `<option value="${esc(n)}">${!isAdmin && mine.has(n) ? "★ " : ""}${esc(n)}</option>`).join("") + `<option value="${SANS}">(sans tournée)</option>`;
+  sel.value = !init && [...sel.options].some(o => o.value === cur) ? cur : (isAdmin ? "" : MINE);
+  if (isAdmin && $("g_dest")) fillAdminSelects();
+}
+function fillAdminSelects() {
+  const opts = sortedT().map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  const keep = id => $(id).value;
+  const g = keep("g_dest"), n = keep("n_tour"), d = keep("d_tour");
+  $("g_dest").innerHTML = `<option value="">Choisir la tournée…</option>` + opts + `<option value="${NONE}">— Aucune (retirer de toute tournée) —</option>`;
+  $("n_tour").innerHTML = `<option value="">Sans tournée</option>` + opts;
+  $("d_tour").innerHTML = `<option value="">Toutes les tournées</option><option value="${SANS}">(sans tournée)</option>` + opts;
+  [["g_dest", g], ["n_tour", n], ["d_tour", d]].forEach(([id, v]) => { if ([...$(id).options].some(o => o.value === v)) $(id).value = v; });
+}
+function fillLists() {
+  const voies = new Set(), coms = new Set();
+  items.forEach(({ p }) => { if (p.nom_voie) voies.add(p.nom_voie); if (p.nom_commune) coms.add(p.nom_commune); });
+  const opt = a => [...a].sort(natural).map(v => `<option value="${esc(v)}">`).join("");
+  $("dl_voie").innerHTML = opt(voies); $("dl_com").innerHTML = opt(coms);
+  const g = $("g_com").value;
+  $("g_com").innerHTML = `<option value="">Toutes</option>` + [...coms].sort(natural).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  if (coms.has(g)) $("g_com").value = g;
+}
+
+$("adm").onclick = async () => { $("panel").style.display = "block"; showTab(adm.tab); await loadAdmin(); };
+$("pclose").onclick = () => { disarm(); $("panel").style.display = "none"; };
+document.querySelectorAll("#panel .tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(t) {
+  adm.tab = t; disarm();
+  document.querySelectorAll("#panel .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  ["aff", "tou", "adr"].forEach(k => $("tab_" + k).hidden = k !== t);
+  if (t === "aff") renderAdmin();
+  if (t === "tou") { fillLists(); fillAdminSelects(); renderTournees(); renderG(); }
+  if (t === "adr") { fillLists(); fillAdminSelects(); renderDel(); }
+  $("panel").scrollTop = 0;
+}
 async function loadAdmin() {
   const [u, m] = await Promise.all([SB.from("utilisateurs").select("email,role"), SB.from("membres").select("email,tournee")]);
   const users = new Set((u.data || []).filter(x => x.role !== "admin").map(x => x.email));
   (m.data || []).forEach(x => users.add(x.email));
   adm.users = [...users].sort((a, b) => natural(who(a), who(b)));
   adm.owner = new Map((m.data || []).map(x => [x.tournee, x.email]));
-  renderAdmin();
+  renderAdmin(); if (adm.tab === "tou") renderTournees();
 }
+
+/* --- Onglet 1 : affectation tournée → binôme --- */
 function renderAdmin() {
   const cnt = new Map(); adm.owner.forEach(e => cnt.set(e, (cnt.get(e) || 0) + 1));
-  const st = new Map();
-  items.forEach(({ p }) => { if (!p.tournee) return; const v = st.get(p.tournee) || { n: 0, d: 0 }; v.n++; if (p.statut !== "a_faire") v.d++; st.set(p.tournee, v); });
-  const all = [...tournees].sort(natural), free = all.filter(t => !adm.owner.has(t));
+  const st = tourStats();
+  const all = sortedT(), free = all.filter(t => !adm.owner.has(t));
   $("asum").textContent = `${all.length} tournées · ${all.length - free.length} affectées · ${free.length} sans binôme`;
   $("af_all").classList.toggle("on", !adm.onlyFree); $("af_free").classList.toggle("on", adm.onlyFree);
   const top = $("panel").scrollTop;
@@ -611,24 +734,241 @@ $("a_rep").onclick = () => {
   const taken = new Set(adm.owner.values()), idle = adm.users.filter(e => !taken.has(e)).length;
   if (!free) { toast("Toutes les tournées ont déjà un binôme"); return; }
   if (!idle) { toast("Aucun binôme sans tournée : rien à répartir"); return; }
-  arm($("a_rep"), `Confirmer : ${free} tournée${free > 1 ? "s" : ""} → ${idle} binôme${idle > 1 ? "s" : ""} ?`, async () => {
+  arm($("a_rep"), `Confirmer : ${free} tournée${plur(free, "", "s")} → ${idle} binôme${plur(idle, "", "s")} ?`, async () => {
     const { data, error } = await SB.rpc("repartir_tournees");
-    if (error) toast(error.message); else toast(`${data} tournée${data > 1 ? "s" : ""} réparties`);
+    if (error) toast(error.message); else toast(`${data} tournée${plur(data, "", "s")} réparties`);
     await loadAdmin();
   });
 };
 $("a_clear").onclick = () => {
   if (!isAdmin) return;
   if (!adm.owner.size) { toast("Aucune affectation à retirer"); return; }
-  arm($("a_clear"), `Confirmer : retirer les ${adm.owner.size} affectation${adm.owner.size > 1 ? "s" : ""} ?`, async () => {
+  arm($("a_clear"), `Confirmer : retirer les ${adm.owner.size} affectation${plur(adm.owner.size, "", "s")} ?`, async () => {
     const { error } = await SB.rpc("retirer_affectations");
     if (error) toast(error.message); else toast("Toutes les affectations ont été retirées");
     await loadAdmin();
   });
 };
-$("pclose").addEventListener("click", disarm);
 $("af_all").onclick = () => { adm.onlyFree = false; renderAdmin(); };
 $("af_free").onclick = () => { adm.onlyFree = true; renderAdmin(); };
+
+/* --- Onglet 2 : gestion des tournées --- */
+function renderTournees() {
+  disarm();
+  const st = tourStats(), sans = [...items.values()].filter(i => !i.p.tournee).length;
+  $("t_sum").textContent = `${tournees.length} tournée${plur(tournees.length, "", "s")} · ${sans} adresse${plur(sans, "", "s")} sans tournée`;
+  $("t_list").innerHTML = sortedT().map(t => {
+    const v = st.get(t) || { n: 0, d: 0 }, o = adm.owner.get(t), ed = adm.edit === t;
+    return `<div class="tr"><div>${ed ? `<input class="ren" value="${esc(t)}" maxlength="60" data-t="${esc(t)}">` : `<b>${esc(t)}</b>`}` +
+      `<small>${v.n} pts · ${v.n ? Math.round(v.d / v.n * 100) : 0} % traités · ${o ? esc(who(o)) : "sans binôme"}</small></div>` +
+      (ed ? `<button class="ib" data-ok="${esc(t)}" aria-label="Valider">✓</button><button class="ib" data-no="1" aria-label="Annuler">✕</button>`
+          : `<button class="ib" data-ed="${esc(t)}" aria-label="Renommer">✎</button><button class="ib dng" data-rm="${esc(t)}" aria-label="Supprimer">🗑</button>`) + `</div>`;
+  }).join("") || '<div class="msg">Aucune tournée.</div>';
+  const L = $("t_list");
+  L.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => { adm.edit = b.dataset.ed; renderTournees(); const i = L.querySelector(".ren"); if (i) { i.focus(); i.select(); } });
+  L.querySelectorAll("[data-no]").forEach(b => b.onclick = () => { adm.edit = null; renderTournees(); });
+  L.querySelectorAll("[data-ok]").forEach(b => b.onclick = () => renommer(b.dataset.ok, L.querySelector(".ren").value));
+  L.querySelectorAll(".ren").forEach(i => i.onkeydown = e => { if (e.key === "Enter") renommer(i.dataset.t, i.value); if (e.key === "Escape") { adm.edit = null; renderTournees(); } });
+  L.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
+    const t = b.dataset.rm, n = (st.get(t) || { n: 0 }).n;
+    if (!(armed && armed.btn === b)) toast(n ? `${n} adresse${plur(n, "", "s")} deviendr${plur(n, "a", "ont")} « sans tournée »` : "Tournée vide");
+    arm(b, "Sûr ?", () => supprimerTournee(t));
+  });
+}
+async function creerTournee() {
+  const nom = $("t_new").value.trim().replace(/\s+/g, " ");
+  if (!nom) { toast("Entrez un nom de tournée"); return; }
+  const { error } = await SB.rpc("creer_tournee", { p_nom: nom });
+  if (error) { toast(error.message); return; }
+  if (!tournees.includes(nom)) tournees.push(nom);
+  $("t_new").value = ""; fillTournees(); renderTournees(); renderAdmin(); toast(`Tournée « ${nom} » créée`);
+}
+$("t_add").onclick = creerTournee;
+$("t_new").addEventListener("keydown", e => { if (e.key === "Enter") creerTournee(); });
+async function renommer(ancien, nouveau) {
+  nouveau = String(nouveau || "").trim().replace(/\s+/g, " ");
+  if (!nouveau || nouveau === ancien) { adm.edit = null; renderTournees(); return; }
+  const { error } = await SB.rpc("renommer_tournee", { p_ancien: ancien, p_nouveau: nouveau });
+  if (error) { toast(error.message); return; }
+  const sel = $("ftour").value;
+  tournees = tournees.map(t => t === ancien ? nouveau : t);
+  items.forEach(({ p }) => { if (p.tournee === ancien) p.tournee = nouveau; });
+  if (adm.owner.has(ancien)) { adm.owner.set(nouveau, adm.owner.get(ancien)); adm.owner.delete(ancien); }
+  adm.edit = null; fillTournees(false, sel === ancien ? nouveau : sel); refresh(false);
+  renderTournees(); renderAdmin(); toast(`« ${ancien} » renommée en « ${nouveau} »`);
+}
+async function supprimerTournee(t) {
+  const { error } = await SB.rpc("supprimer_tournee", { p_nom: t });
+  if (error) { toast(error.message); return; }
+  tournees = tournees.filter(x => x !== t); adm.owner.delete(t);
+  items.forEach(({ p }) => { if (p.tournee === t) p.tournee = null; });
+  fillTournees(); refresh(false); renderTournees(); renderAdmin(); toast(`Tournée « ${t} » supprimée`);
+}
+
+/* Affectation d'adresses à une tournée (filtres commune / rue / n° / parité) */
+function gMatch() {
+  const com = $("g_com").value, voie = norm($("g_voie").value), de = parseInt($("g_de").value, 10), a = parseInt($("g_a").value, 10),
+    par = $("g_par").value, free = $("g_free").checked, out = [];
+  const numF = !isNaN(de) || !isNaN(a) || par !== "";
+  items.forEach(({ p }) => {
+    if (free && p.tournee) return;
+    if (com && p.nom_commune !== com) return;
+    if (voie && !norm(p.nom_voie).includes(voie)) return;
+    const n = p.numero;
+    if (numF) {
+      if (n === null || n === undefined) return;
+      if (!isNaN(de) && n < de) return;
+      if (!isNaN(a) && n > a) return;
+      if (par === "pair" && n % 2) return;
+      if (par === "impair" && n % 2 === 0) return;
+    }
+    out.push(p);
+  });
+  return out;
+}
+function renderG() {
+  disarm();
+  const n = gMatch().length;
+  $("g_cnt").textContent = `${n} adresse${plur(n, "", "s")} correspond${plur(n, "", "ent")} aux filtres`;
+}
+["g_com", "g_par", "g_voie", "g_de", "g_a", "g_free", "g_dest"].forEach(id => { $(id).oninput = $(id).onchange = renderG; });
+$("g_go").onclick = () => {
+  const dest = $("g_dest").value;
+  if (!dest) { toast("Choisissez la tournée de destination"); return; }
+  const t = dest === NONE ? null : dest, pts = gMatch().filter(p => (p.tournee || null) !== t);
+  if (!pts.length) { toast("Aucune adresse à modifier"); return; }
+  arm($("g_go"), `Confirmer : ${pts.length} adresse${plur(pts.length, "", "s")} → ${t || "sans tournée"} ?`, async () => {
+    const { data, error } = await SB.rpc("affecter_points", { p_ids: pts.map(p => p.id), p_tournee: t });
+    if (error) { toast(error.message); return; }
+    pts.forEach(p => { p.tournee = t; restyle(items.get(p.id)); });
+    refresh(false); if (openIt) rerender(openIt);
+    renderTournees(); renderG();
+    toast(`${data ?? pts.length} adresse${plur(data ?? pts.length, "", "s")} → ${t || "sans tournée"}`);
+  });
+};
+
+/* --- Onglet 3 : adresses (création / suppression) --- */
+$("s_add").onclick = () => subTab("add"); $("s_del").onclick = () => subTab("del");
+function subTab(k) {
+  disarm();
+  $("s_add").classList.toggle("on", k === "add"); $("s_del").classList.toggle("on", k === "del");
+  $("sub_add").hidden = k !== "add"; $("sub_del").hidden = k !== "del";
+  if (k === "del") renderDel();
+}
+
+let draft = null, geo = [];
+function drawDraft() {
+  if (draft) { draft.remove(); draft = null; }
+  const lat = parseFloat($("n_lat").value.replace(",", ".")), lon = parseFloat($("n_lon").value.replace(",", "."));
+  if (isFinite(lat) && isFinite(lon) && map) draft = L.circleMarker([lat, lon], { radius: 13, color: "#7c3aed", weight: 3, fillColor: "#7c3aed", fillOpacity: .25, interactive: false }).addTo(map);
+}
+function setLL(lat, lon) { $("n_lat").value = lat.toFixed(6); $("n_lon").value = lon.toFixed(6); drawDraft(); }
+$("n_lat").oninput = $("n_lon").oninput = drawDraft;
+
+$("n_go").onclick = searchGeo;
+$("n_q").addEventListener("keydown", e => { if (e.key === "Enter") searchGeo(); });
+async function searchGeo() {
+  const q = $("n_q").value.trim();
+  if (q.length < 3) { toast("Tapez au moins 3 caractères"); return; }
+  const box = $("n_res"); box.innerHTML = '<div class="msg">Recherche…</div>';
+  try {
+    const c = map.getCenter();
+    const r = await fetch(`https://data.geopf.fr/geocodage/search/?q=${encodeURIComponent(q)}&limit=6&lat=${c.lat}&lon=${c.lng}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    geo = (j.features || []).filter(f => f.geometry && f.geometry.coordinates).map(f => ({ ...f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }));
+    box.innerHTML = geo.length ? "" : '<div class="msg">Aucun résultat : saisissez l\'adresse ci-dessous ou choisissez la position sur la carte.</div>';
+    geo.forEach((g, i) => {
+      const b = document.createElement("button");
+      b.innerHTML = `${esc(g.label || g.name)}<small>${esc(g.type === "housenumber" ? "Numéro" : g.type === "street" ? "Rue (sans numéro)" : g.type || "")}</small>`;
+      b.onclick = () => useGeo(geo[i]); box.appendChild(b);
+    });
+  } catch (e) {
+    box.innerHTML = '<div class="msg">Recherche indisponible : saisissez l\'adresse ci-dessous ou choisissez la position sur la carte.</div>';
+  }
+}
+function useGeo(g) {
+  const m = String(g.housenumber || "").match(/^(\d+)\s*(.*)$/);
+  $("n_num").value = m ? m[1] : ""; $("n_suf").value = m ? m[2].toLowerCase() : "";
+  $("n_voie").value = g.type === "municipality" ? "" : (g.street || g.name || "");
+  $("n_com").value = g.city || ($("n_com").value);
+  setLL(g.lat, g.lon); $("n_res").innerHTML = "";
+  map.setView([g.lat, g.lon], Math.max(map.getZoom(), 18));
+}
+
+/* Choisir sur la carte : le panneau se masque, le prochain appui sur la carte fixe la position */
+function onPick(e) {
+  e.stopPropagation(); e.preventDefault();
+  const ll = map.mouseEventToLatLng(e);
+  map.closePopup(); setLL(ll.lat, ll.lng); endPick();
+}
+function endPick() {
+  $("pickbar").style.display = "none"; map.getContainer().style.cursor = "";
+  map.getContainer().removeEventListener("click", onPick, true);
+  $("panel").style.display = "block";
+}
+$("n_pick").onclick = () => {
+  $("panel").style.display = "none"; $("pickbar").style.display = "flex"; map.getContainer().style.cursor = "crosshair";
+  map.getContainer().addEventListener("click", onPick, true);
+  const lat = parseFloat($("n_lat").value), lon = parseFloat($("n_lon").value);
+  if (isFinite(lat) && isFinite(lon)) map.setView([lat, lon], Math.max(map.getZoom(), 18));
+};
+$("pickcancel").onclick = endPick;
+
+$("n_create").onclick = async () => {
+  const voie = $("n_voie").value.trim(), com = $("n_com").value.trim(), numRaw = $("n_num").value.trim(), suf = $("n_suf").value.trim(), tour = $("n_tour").value;
+  const lat = parseFloat($("n_lat").value.replace(",", ".")), lon = parseFloat($("n_lon").value.replace(",", "."));
+  if (!voie) { toast("Indiquez la rue"); return; }
+  if (!com) { toast("Indiquez la commune"); return; }
+  if (!isFinite(lat) || !isFinite(lon)) { toast("Indiquez la position (recherche ou carte)"); return; }
+  const numero = numRaw === "" ? null : Number(numRaw);
+  if (numero !== null && (!Number.isInteger(numero) || numero < 0)) { toast("Numéro invalide"); return; }
+  const { data, error } = await SB.rpc("creer_adresse", { p_numero: numero, p_suffixe: suf || null, p_voie: voie, p_commune: com, p_tournee: tour || null, p_lon: lon, p_lat: lat });
+  if (error) { toast(error.message); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (row && !items.has(row.id)) addPoint(row);
+  refresh(false); fillLists();
+  if (draft) { draft.remove(); draft = null; }
+  ["n_num", "n_suf", "n_lat", "n_lon", "n_q"].forEach(id => $(id).value = ""); $("n_res").innerHTML = "";
+  toast(`Adresse créée : ${[numero, suf, voie].filter(v => v !== null && v !== "").join(" ")}`); // rue / commune / tournée conservées pour enchaîner
+};
+
+function removePoint(id) {
+  const it = items.get(id); if (!it) return;
+  if (openIt === it) it.m.closePopup();
+  layer.removeLayer(it.m); items.delete(id);
+  [...ventes.values()].forEach(v => { if (v.point_id === id) ventes.delete(v.id); });
+  refresh(false);
+}
+function renderDel() {
+  disarm();
+  const q = norm($("d_q").value), t = $("d_tour").value, rows = [];
+  if (q || t) items.forEach(({ p }) => {
+    if (t === SANS ? p.tournee : (t && p.tournee !== t)) return;
+    if (q && !q.split(/\s+/).every(w => norm([p.numero, p.suffixe, p.nom_voie, p.nom_commune].join(" ")).includes(w))) return;
+    rows.push(p);
+  });
+  rows.sort((a, b) => natural(a.nom_commune, b.nom_commune) || natural(a.nom_voie, b.nom_voie) || (a.numero ?? 0) - (b.numero ?? 0));
+  const nv = new Map(); ventes.forEach(v => nv.set(v.point_id, (nv.get(v.point_id) || 0) + 1));
+  $("d_cnt").textContent = !q && !t ? "Tapez une rue, un numéro ou une commune pour trouver l'adresse à supprimer."
+    : rows.length > 30 ? `${rows.length} résultats : 30 affichés, affinez la recherche.` : `${rows.length} résultat${plur(rows.length, "", "s")}`;
+  $("d_list").innerHTML = rows.slice(0, 30).map(p => {
+    const n = nv.get(p.id) || 0;
+    return `<div class="tr" style="grid-template-columns:1fr auto"><div><b>${esc(titreOf(p) || "(sans libellé)")}</b><small>${esc(p.nom_commune)} · ${esc(p.tournee || "sans tournée")} · ${meta(p.statut).l}${n ? ` · ${n} vente${plur(n, "", "s")}` : ""}</small></div>` +
+      `<button class="ib dng" data-id="${p.id}" aria-label="Supprimer l'adresse">🗑</button></div>`;
+  }).join("");
+  $("d_list").querySelectorAll("[data-id]").forEach(b => b.onclick = () => {
+    const id = Number(b.dataset.id), n = nv.get(id) || 0;
+    if (!(armed && armed.btn === b) && n) toast(`Attention : ${n} vente${plur(n, "", "s")} sera${plur(n, "", "ont")} aussi supprimée${plur(n, "", "s")}`);
+    arm(b, "Sûr ?", async () => {
+      const { data, error } = await SB.rpc("supprimer_adresse", { p_id: id });
+      if (error) { toast(error.message); return; }
+      removePoint(id); renderDel(); renderTournees();
+      toast("Adresse supprimée" + (data ? ` (${data} vente${plur(data, "", "s")} supprimée${plur(data, "", "s")})` : ""));
+    });
+  });
+}
+$("d_q").oninput = $("d_tour").onchange = renderDel;
 </script>
 </body>
 </html>
