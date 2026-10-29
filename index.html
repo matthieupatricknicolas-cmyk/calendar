@@ -77,8 +77,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .leaflet-popup-content h3{margin:0 0 2px;font-size:16px}
 .pop .sub{color:var(--mut);font-size:13px}
 .pop label{display:block;color:var(--mut);font-size:12.5px;margin-top:8px}
-.pop select,.pop input{width:100%;font-size:16px;padding:8px;border-radius:8px;border:2px solid #d1d5db;background:#fff;margin:2px 0}
+.pop select,.pop input,.pop textarea{width:100%;font-size:16px;padding:8px;border-radius:8px;border:2px solid #d1d5db;background:#fff;margin:2px 0}
 .pop select{border-color:var(--c,#999)}
+.pop textarea{resize:vertical;font-family:inherit;font-size:15px}
+.pop .addv{width:100%;margin-top:10px;padding:10px;font-size:15px;font-weight:600;border:2px solid #16a34a;background:#f0fdf4;color:#15803d;border-radius:8px}
+.pop .addv.on{border-color:#9ca3af;background:#f3f4f6;color:#4b5563}
 .pop .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-right:22px}
 .pop .plus{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:#16a34a;color:#fff;font-size:26px;line-height:1;padding:0;transition:transform .15s}
 .pop .plus.on{background:#6b7280}
@@ -235,6 +238,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 const SB = supabase.createClient("https://oczxkctqaxfigsfjzoeu.supabase.co", "sb_publishable_KP5UHHZqW4NGj3GFRYJyng_mDwnoikz");
 const ST = [
   {k:"a_faire", l:"À faire", c:"#3b82f6"}, {k:"fait", l:"Fait", c:"#16a34a"},
+  {k:"partiel", l:"Partiellement fait", s:"Partiel", c:"#0d9488"},
   {k:"repasse", l:"Repassé", c:"#f59e0b"}, {k:"refus", l:"Refus", c:"#dc2626"}];
 const meta = k => ST.find(s => s.k === k) || ST[0];
 const $ = id => document.getElementById(id);
@@ -306,7 +310,7 @@ async function start() {
   initMap();
   await loadAll();
   flush();
-  const touched = pid => { refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen) rerender(openIt); };
+  const touched = pid => { refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen && document.activeElement?.id !== "nt") rerender(openIt); };
   SB.channel("live")
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
       p => {
@@ -369,7 +373,7 @@ function initMap() {
 }
 
 async function loadAll() {
-  const cols = "id,fid,numero,suffixe,nom_voie,nom_commune,tournee,statut,date_passage,lon,lat,maj_par,maj_le";
+  const cols = "id,fid,numero,suffixe,nom_voie,nom_commune,tournee,statut,commentaire,date_passage,lon,lat,maj_par,maj_le";
   for (let from = 0; ; from += 1000) {
     const { data, error } = await SB.from("points").select(cols).order("id").range(from, from + 999);
     if (error) { toast("Erreur : " + error.message); break; }
@@ -442,7 +446,11 @@ function popupHtml(it) {
   const p = it.p, edit = canEdit(p), vs = ventesOf(p.id), tot = vs.reduce((a, v) => a + v.montant, 0), m = meta(p.statut);
   const titre = [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== undefined && v !== "").join(" ");
   const head = `<div class="top"><div><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div></div>` +
-    (edit && vs.length ? `<button class="plus${it.addOpen ? " on" : ""}" id="pl" aria-label="Ajouter une vente">${it.addOpen ? "−" : "＋"}</button>` : "") + `</div>`;
+    `</div>`;
+  const addBtn = edit && vs.length ? `<button class="addv${it.addOpen ? " on" : ""}" id="pl">${it.addOpen ? "− Annuler l'ajout" : "＋ Ajouter une vente"}</button>` : "";
+  const note = p.statut !== "partiel" ? "" : edit
+    ? `<label for="nt">Précisions (partiellement fait)</label><textarea id="nt" rows="2" maxlength="300" placeholder="Ex. 3 logements sur 8 faits, repasser le samedi">${esc(p.commentaire)}</textarea>`
+    : (p.commentaire ? `<div class="sub" style="margin-top:6px">📝 ${esc(p.commentaire)}</div>` : "");
   const form = edit && (!vs.length || it.addOpen) ? `<div class="vform"><label for="vm">Montant (€)</label><input id="vm" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
     <label for="vp">Paiement</label><select id="vp">${MODES.map(x => `<option value="${x.k}"${x.k === lastMode ? " selected" : ""}>${x.i} ${x.l}</option>`).join("")}</select>
     <button class="save" id="vs">Enregistrer la vente</button></div>` : "";
@@ -452,13 +460,15 @@ function popupHtml(it) {
   const stat = edit
     ? `<label for="st">Statut</label><select id="st" style="--c:${m.c}">${ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("")}</select>`
     : `<div style="margin-top:8px"><span class="dot" style="background:${m.c};display:inline-block;vertical-align:-1px"></span> <b>${m.l}</b></div>`;
-  return `<div class="pop">${head}${stat}${form}${list}${maj0(p)}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
+  return `<div class="pop">${head}${stat}${note}${addBtn}${form}${list}${maj0(p)}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
 }
 
 function wire(it) {
   const pp = it.m.getPopup(), el = pp && pp.getElement(); if (!el) return;
   const st = el.querySelector("#st"); if (!st) return; // lecture seule
-  st.onchange = () => setStatut(it, st.value);
+  st.onchange = () => { setStatut(it, st.value); const n = st.value === "partiel" && it.m.getPopup().getElement().querySelector("#nt"); if (n) n.focus(); };
+  const nt = el.querySelector("#nt");
+  if (nt) { let tm; const go = () => { clearTimeout(tm); saveNote(it, nt.value); }; nt.oninput = () => { clearTimeout(tm); tm = setTimeout(go, 800); }; nt.onblur = go; }
   const pl = el.querySelector("#pl"); // « ＋ » : uniquement pour ajouter un calendrier de plus à l'adresse
   if (pl) pl.onclick = e => { e.stopPropagation(); it.addOpen = !it.addOpen; rerender(it); const i = it.addOpen && it.m.getPopup().getElement().querySelector("#vm"); if (i) i.focus(); };
   const vs = el.querySelector("#vs");
@@ -479,16 +489,25 @@ function wire(it) {
 function setStatut(it, statut) {
   if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
   Object.assign(it.p, { statut, date_passage: parisDay(), maj_le: new Date().toISOString(), maj_par: me });
+  if (statut !== "partiel") { it.p.commentaire = null; queue = queue.filter(q => !(q.k === "note" && q.id === it.p.id)); }
   queue = queue.filter(q => !(q.k === "statut" && q.id === it.p.id)); queue.push({ k: "statut", id: it.p.id, statut }); saveQ();
   restyle(it); refresh(false); rerender(it); flush();
+}
+function saveNote(it, texte) {
+  texte = String(texte || "").trim().slice(0, 300);
+  if (!canEdit(it.p) || it.p.statut !== "partiel" || (it.p.commentaire || "") === texte) return;
+  it.p.commentaire = texte || null; it.p.maj_le = new Date().toISOString(); it.p.maj_par = me;
+  queue = queue.filter(q => !(q.k === "note" && q.id === it.p.id)); queue.push({ k: "note", id: it.p.id, texte }); saveQ(); flush();
 }
 function addVente(it, montant, mode) {
   if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
   lastMode = mode; it.addOpen = false;
   const v = { id: uuid(), point_id: it.p.id, montant, mode, jour: parisDay(), par: me, cree_le: new Date().toISOString() };
   ventes.set(v.id, v);
-  Object.assign(it.p, { statut: "fait", date_passage: v.jour, maj_le: v.cree_le, maj_par: me }); // une vente passe le point à « fait »
-  queue = queue.filter(q => !(q.k === "statut" && q.id === it.p.id));
+  if (it.p.statut !== "partiel") { // une vente passe le point à « fait », sauf s'il est « partiellement fait »
+    Object.assign(it.p, { statut: "fait", date_passage: v.jour, maj_le: v.cree_le, maj_par: me, commentaire: null });
+    queue = queue.filter(q => !(q.k === "statut" && q.id === it.p.id) && !(q.k === "note" && q.id === it.p.id));
+  }
   queue.push({ k: "vente", id: v.id, point: it.p.id, montant, mode }); saveQ();
   restyle(it); refresh(false); rerender(it); flush(); toast("Vente ajoutée : " + EUR.format(montant));
 }
@@ -503,7 +522,7 @@ async function flush() {
   if (flush.busy) return; flush.busy = true;
   while (queue.length) {
     const q = flush.cur = queue[0];
-    const { error } = await (q.k === "statut" ? SB.rpc("set_statut", { p_id: q.id, p_statut: q.statut })
+    const { error } = await (q.k === "note" ? SB.rpc("set_commentaire", { p_id: q.id, p_texte: q.texte }) : q.k === "statut" ? SB.rpc("set_statut", { p_id: q.id, p_statut: q.statut })
       : q.k === "vente" ? SB.rpc("ajouter_vente", { p_id: q.id, p_point: q.point, p_montant: q.montant, p_mode: q.mode })
       : SB.rpc("supprimer_vente", { p_id: q.id }));
     flush.cur = null;
@@ -542,7 +561,7 @@ function dashboard(f) {
     const d = days.get(v.jour) || { n: 0, sum: 0 }; d.n++; d.sum += v.montant; days.set(v.jour, d);
     const md = modes[v.mode]; if (md) { md.n++; md.s += v.montant; }
   });
-  ST.forEach(s => { const b = document.querySelector(`.chip[data-k="${s.k}"]`); if (b) { b.textContent = `${s.l} ${n[s.k]}`; b.classList.toggle("on", active.has(s.k)); } });
+  ST.forEach(s => { const b = document.querySelector(`.chip[data-k="${s.k}"]`); if (b) { b.textContent = `${s.s || s.l} ${n[s.k]}`; b.classList.toggle("on", active.has(s.k)); } });
 
   const label = labelOf(f);
   $("dtitle").textContent = label;
@@ -599,9 +618,9 @@ $("exp").onclick = async () => {
     const x = perPt.get(v.point_id) || { n: 0, s: 0 }; x.n++; x.s += v.montant; perPt.set(v.point_id, x);
     const j = jours.get(v.jour) || { n: 0, t: 0, especes: 0, cheque: 0, cb: 0 }; j.n++; j.t += v.montant; j[v.mode] += v.montant; jours.set(v.jour, j);
   });
-  const head = ["Tournée", "Commune", "Numéro", "Suffixe", "Voie", "Statut", "Nb ventes", "Montant total (€)", "Date dernière modification", "Modifié par", "Latitude", "Longitude"];
+  const head = ["Tournée", "Commune", "Numéro", "Suffixe", "Voie", "Statut", "Nb ventes", "Montant total (€)", "Date dernière modification", "Modifié par", "Précisions", "Latitude", "Longitude"];
   const rows = pts.map(p => { const x = perPt.get(p.id);
-    return [p.tournee || "", p.nom_commune || "", p.numero ?? "", p.suffixe || "", p.nom_voie || "", meta(p.statut).l, x ? x.n : 0, x ? r2(x.s) : "", dt(p.date_passage), who(p.maj_par), p.lat, p.lon]; });
+    return [p.tournee || "", p.nom_commune || "", p.numero ?? "", p.suffixe || "", p.nom_voie || "", meta(p.statut).l, x ? x.n : 0, x ? r2(x.s) : "", dt(p.date_passage), who(p.maj_par), p.commentaire || "", p.lat, p.lon]; });
   const vhead = ["Date", "Tournée", "Commune", "Adresse", "Montant (€)", "Mode de paiement", "Vendu par"];
   const vrows = vs.map(v => { const p = items.get(v.point_id).p; return [dt(v.jour), p.tournee || "", p.nom_commune || "", adr(p), v.montant, modeOf(v.mode).l, who(v.par)]; });
   const jhead = ["Date", "Ventes", "Montant (€)", "Espèces (€)", "Chèque (€)", "CB (€)"];
@@ -859,7 +878,7 @@ $("z_go").onclick = () => {
   arm($("z_go"), "Dernier appui : TOUT effacer ?", async () => {
     const { data, error } = await SB.rpc("reinitialiser_points");
     if (error) { toast(error.message); return; }
-    items.forEach(it => { Object.assign(it.p, { statut: "a_faire", date_passage: null, maj_par: null, maj_le: null }); restyle(it); });
+    items.forEach(it => { Object.assign(it.p, { statut: "a_faire", date_passage: null, maj_par: null, maj_le: null, commentaire: null }); restyle(it); });
     ventes.clear(); queue = []; saveQ(); $("z_in").value = "";
     refresh(false); if (openIt) rerender(openIt); renderTournees();
     toast(`Remise à zéro : ${data?.points ?? 0} point${plur(data?.points ?? 0, "", "s")} et ${data?.ventes ?? 0} vente${plur(data?.ventes ?? 0, "", "s")} réinitialisés`);
