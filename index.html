@@ -118,6 +118,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .warn[hidden]{display:none}
 .warn div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0}
 .warn button{border:1px solid #f59e0b;background:#fff;color:#78350f;border-radius:6px;padding:3px 8px;font-size:13px;flex:none}
+.cl-wrap{overflow:visible}
+.cl{position:absolute;transform:translate(-50%,-50%);background:rgba(17,24,39,.92);color:#fff;border:2px solid #fff;border-radius:12px;padding:3px 10px 5px;text-align:center;white-space:nowrap;box-shadow:0 1px 6px rgba(0,0,0,.4);font:600 12.5px/1.2 system-ui,-apple-system,sans-serif;cursor:pointer}
+.cl small{display:block;font-weight:400;font-size:11px;opacity:.85}
+.cl i{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.25);margin-top:3px;overflow:hidden}
+.cl i u{display:block;height:100%;background:#4ade80}
 #pickbar span{flex:1}
 #pickbar button{border:0;background:#fff;color:#7c3aed;border-radius:8px;padding:6px 10px;font-size:14px}
 #main{position:relative}
@@ -396,6 +401,7 @@ function initMap() {
   layer = L.layerGroup().addTo(map);
   map.setView([46.77, 5.62], 13);
   initGps();
+  map.on("zoomend", () => { if (items.size) renderMap(); });
   addEventListener("resize", () => map.invalidateSize());
 }
 
@@ -426,7 +432,9 @@ async function loadAll() {
 }
 
 const toggle = k => { active.has(k) ? active.delete(k) : active.add(k); refresh(false); };
-const sty = p => ({ radius: 10, color: "#fff", weight: 2, fillColor: meta(p.statut).c, fillOpacity: canEdit(p) ? .95 : .5 });
+const CZ = 14; // en dessous de ce zoom : une pastille par tournée au lieu des points
+const zr = () => { const z = map ? map.getZoom() : 17; return z >= 18 ? 10 : z >= 17 ? 9 : z >= 16 ? 7 : z >= 15 ? 6 : 5; };
+const sty = p => ({ radius: zr(), color: "#fff", weight: map && map.getZoom() < 16 ? 1.5 : 2, fillColor: meta(p.statut).c, fillOpacity: canEdit(p) ? .95 : .5 });
 const restyle = it => it.m.setStyle(sty(it.p));
 
 /* Étiquette du numéro de rue, dessinée sur le canvas (léger même avec des milliers de points) */
@@ -576,14 +584,45 @@ addEventListener("online", flush);
 /* ---------- Filtre + tableau de bord ---------- */
 const inFilter = (p, f) => !f || (f === SANS ? !p.tournee : f === MINE ? mine.has(p.tournee) : p.tournee === f);
 
+let cl = null, lastR = 0;
 function refresh(fit) {
   const f = $("ftour").value, pts = [];
-  items.forEach(it => {
-    const show = inFilter(it.p, f) && active.has(it.p.statut);
-    if (show) { if (!layer.hasLayer(it.m)) layer.addLayer(it.m); pts.push(it.m.getLatLng()); } else layer.removeLayer(it.m);
-  });
+  items.forEach(it => { if (inFilter(it.p, f) && active.has(it.p.statut)) pts.push(it.m.getLatLng()); });
+  renderMap();
   dashboard(f);
   if (fit && pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+}
+/* Points (zoom ≥ 14) ou pastilles « tournée · nombre de points » (zoom plus petit) */
+function renderMap() {
+  const f = $("ftour").value, clustered = map.getZoom() < CZ, groups = new Map(), r = zr();
+  if (!cl) cl = L.layerGroup().addTo(map);
+  if (r !== lastR) { lastR = r; items.forEach(it => { it.m.setRadius(r); it.m.options.weight = map.getZoom() < 16 ? 1.5 : 2; }); }
+  items.forEach(it => {
+    const p = it.p, show = inFilter(p, f) && active.has(p.statut);
+    if (show && !clustered) { if (!layer.hasLayer(it.m)) layer.addLayer(it.m); } else layer.removeLayer(it.m);
+    if (show && clustered) {
+      const k = p.tournee || "", g = groups.get(k) || { name: p.tournee || "Sans tournée", n: 0, d: 0, ll: [] };
+      g.n++; if (p.statut !== "a_faire") g.d++; g.ll.push([p.lat, p.lon]); groups.set(k, g);
+    }
+  });
+  cl.clearLayers();
+  if (!clustered) return;
+  const out = [];
+  [...groups.values()].sort((a, b) => b.n - a.n).forEach(g => {
+    const q = map.latLngToLayerPoint(g.ll.reduce((a, c) => [a[0] + c[0] / g.n, a[1] + c[1] / g.n], [0, 0])); // centre de la tournée
+    const o = out.find(o => Math.abs(o.x / o.n - q.x) < 95 && Math.abs(o.y / o.n - q.y) < 38); // pastilles trop proches : regroupées
+    if (o) { o.n += g.n; o.d += g.d; o.x += q.x * g.n; o.y += q.y * g.n; o.names.push(g.name); o.ll.push(...g.ll); }
+    else out.push({ n: g.n, d: g.d, x: q.x * g.n, y: q.y * g.n, names: [g.name], ll: [...g.ll] });
+  });
+  out.forEach(o => {
+    const t = o.names.length > 1 ? `${o.names.length} tournées` : o.names[0], pct = Math.round(o.d / o.n * 100);
+    const ic = L.divIcon({ className: "cl-wrap", iconSize: [0, 0],
+      html: `<div class="cl" title="${pct} % traités"><b>${esc(t)}</b><small>${o.n} point${plur(o.n, "", "s")}</small><i><u style="width:${pct}%"></u></i></div>` });
+    L.marker(map.layerPointToLatLng(L.point(o.x / o.n, o.y / o.n)), { icon: ic, keyboard: false }).addTo(cl).on("click", () => {
+      const b = L.latLngBounds(o.ll);
+      map.setView(b.getCenter(), Math.min(19, Math.max(CZ, map.getBoundsZoom(b, false, L.point(50, 50)))));
+    });
+  });
 }
 
 const labelOf = f => f === SANS ? "Sans tournée" : f === MINE ? "Mes tournées" : f || "Toutes les tournées";
