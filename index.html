@@ -54,7 +54,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .day .v small{display:block;color:var(--mut);font-size:11.5px}
 .tot{display:flex;justify-content:space-between;border-top:2px solid var(--ink);margin-top:8px;padding-top:8px;font-weight:600;font-variant-numeric:tabular-nums}
 .empty{color:var(--mut);font-size:13px;padding:8px 0}
-#login,#panel,#wait{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
+#login,#panel,#wait,#addm{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
 .card{max-width:420px;margin:0 auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
 .card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
 .card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff;margin-top:6px}
@@ -110,7 +110,10 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .res small{color:var(--mut);display:block;font-size:12px}
 .card button.sec2{width:100%;font-size:15px;padding:10px;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;margin-top:6px}
 #pickbar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;right:8px;z-index:2500;background:#7c3aed;color:#fff;border-radius:12px;padding:10px 12px;display:none;align-items:center;gap:10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
-#pickbar button{margin-left:auto;border:0;background:#fff;color:#7c3aed;border-radius:8px;padding:6px 10px;font-size:14px}
+#pickbar span{flex:1}
+#pickbar button{border:0;background:#fff;color:#7c3aed;border-radius:8px;padding:6px 10px;font-size:14px}
+#main{position:relative}
+#addb{display:none;position:absolute;top:12px;left:12px;z-index:1000;width:46px;height:46px;border-radius:50%;border:2px solid #fff;background:#2563eb;color:#fff;font-size:30px;line-height:1;padding:0 0 3px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3000;display:none;max-width:90vw}
 @media (max-width:899px){
   #dbtn{display:inline-block}
@@ -201,7 +204,18 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   </section>
   <datalist id="dl_voie"></datalist><datalist id="dl_com"></datalist>
 </div></div>
-<div id="pickbar"><span>Touchez la carte pour placer l'adresse</span><button id="pickcancel">Annuler</button></div>
+<div id="pickbar"><span id="pk_txt">Touchez la carte pour placer l'adresse</span><button id="pk_gps">📍 Ici</button><button id="pickcancel">Annuler</button></div>
+<div id="addm"><div class="card">
+  <h3 style="margin:0 0 4px">Nouvelle adresse</h3>
+  <div class="sub">Adresse manquante : elle sera ajoutée à la carte pour tous.</div>
+  <div class="frow"><input id="m_num" type="number" inputmode="numeric" min="0" placeholder="N°"><input id="m_suf" type="text" placeholder="bis, ter…" maxlength="10" autocomplete="off"></div>
+  <input id="m_voie" type="text" list="dl_voie" placeholder="Rue" autocomplete="off">
+  <input id="m_com" type="text" list="dl_com" placeholder="Commune" autocomplete="off">
+  <label class="sub" for="m_tour">Tournée</label><select id="m_tour"></select>
+  <button class="sec2" id="m_move">📍 Repositionner sur la carte</button>
+  <button class="go" id="m_go">Ajouter l'adresse</button>
+  <button class="lnk" id="m_cancel">Annuler</button>
+</div></div>
 
 <div id="app">
   <header>
@@ -216,6 +230,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   </header>
   <div id="main">
     <div id="map"></div>
+    <button id="addb" aria-label="Ajouter une adresse manquante">＋</button>
     <aside id="dash">
       <div class="row"><h2 id="dtitle">Avancement</h2><button class="btn" id="dclose" style="background:#1f2937">✕</button></div>
       <div class="sub" id="dsub"></div>
@@ -309,6 +324,7 @@ async function start() {
     if (!mine.size) { $("wmail").textContent = me; $("wait").style.display = "block"; setInterval(() => { if (!document.hidden) checkMine(); }, 15000); return; }
   }
   initMap();
+  $("addb").style.display = "block";
   await loadAll();
   flush();
   const touched = pid => { refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen && document.activeElement?.id !== "nt") rerender(openIt); };
@@ -935,24 +951,36 @@ function useGeo(g) {
   map.setView([g.lat, g.lon], Math.max(map.getZoom(), 18));
 }
 
-/* Choisir sur la carte : le panneau se masque, le prochain appui sur la carte fixe la position */
+/* Choisir un point sur la carte : le prochain appui fixe la position (callback null si annulé) */
+let pickCb = null;
 function onPick(e) {
   e.stopPropagation(); e.preventDefault();
-  const ll = map.mouseEventToLatLng(e);
-  map.closePopup(); setLL(ll.lat, ll.lng); endPick();
+  const ll = map.mouseEventToLatLng(e); map.closePopup(); endPick(ll);
 }
-function endPick() {
+function endPick(ll) {
+  const cb = pickCb; pickCb = null;
   $("pickbar").style.display = "none"; map.getContainer().style.cursor = "";
   map.getContainer().removeEventListener("click", onPick, true);
-  $("panel").style.display = "block";
+  if (cb) cb(ll || null);
 }
-$("n_pick").onclick = () => {
-  $("panel").style.display = "none"; $("pickbar").style.display = "flex"; map.getContainer().style.cursor = "crosshair";
+function pickPoint(text, cb) {
+  endPick(null); pickCb = cb; $("pk_txt").textContent = text;
+  $("pk_gps").style.display = navigator.geolocation ? "" : "none";
+  $("pickbar").style.display = "flex"; map.getContainer().style.cursor = "crosshair";
   map.getContainer().addEventListener("click", onPick, true);
+}
+$("pickcancel").onclick = () => endPick(null);
+$("pk_gps").onclick = () => {
+  toast("Recherche de votre position…");
+  navigator.geolocation.getCurrentPosition(pos => endPick(L.latLng(pos.coords.latitude, pos.coords.longitude)),
+    () => toast("Position indisponible : touchez la carte"), { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+};
+$("n_pick").onclick = () => {
+  $("panel").style.display = "none";
   const lat = parseFloat($("n_lat").value), lon = parseFloat($("n_lon").value);
   if (isFinite(lat) && isFinite(lon)) map.setView([lat, lon], Math.max(map.getZoom(), 18));
+  pickPoint("Touchez la carte pour placer l'adresse", ll => { $("panel").style.display = "block"; if (ll) setLL(ll.lat, ll.lng); });
 };
-$("pickcancel").onclick = endPick;
 
 $("n_create").onclick = async () => {
   const voie = $("n_voie").value.trim(), com = $("n_com").value.trim(), numRaw = $("n_num").value.trim(), suf = $("n_suf").value.trim(), tour = $("n_tour").value;
@@ -1008,6 +1036,54 @@ function renderDel() {
   });
 }
 $("d_q").oninput = $("d_tour").onchange = renderDel;
+
+/* ---------- Bouton « + » (bleu, en haut à gauche) : ajouter une adresse manquante ---------- */
+let mpos = null;
+function nearestPoint(ll) {
+  let best = null, bd = Infinity; const k = Math.cos(ll.lat * Math.PI / 180);
+  items.forEach(({ p }) => { const dy = p.lat - ll.lat, dx = (p.lon - ll.lng) * k, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = p; } });
+  return best && Math.sqrt(bd) * 111000 < 500 ? best : null;
+}
+function startAdd() {
+  if (document.querySelector("#panel").style.display === "block") return;
+  pickPoint("Touchez la carte à l'emplacement de l'adresse manquante", ll => { if (ll) openAddm(ll, false); });
+}
+$("addb").onclick = startAdd;
+function openAddm(ll, keep) {
+  mpos = ll; fillLists();
+  const opts = isAdmin ? [""].concat(sortedT()) : [...mine].sort(natural);
+  $("m_tour").innerHTML = opts.map(t => `<option value="${esc(t)}">${t ? esc(t) : "Sans tournée"}</option>`).join("");
+  if (!keep) {
+    const nb = nearestPoint(ll);
+    $("m_num").value = ""; $("m_suf").value = "";
+    $("m_voie").value = nb ? nb.nom_voie || "" : ""; $("m_com").value = nb ? nb.nom_commune || "" : "";
+    if (nb && opts.includes(nb.tournee)) $("m_tour").value = nb.tournee;
+  }
+  $("addm").style.display = "block";
+  setTimeout(() => $("m_num").focus(), 50);
+}
+$("m_cancel").onclick = () => { $("addm").style.display = "none"; };
+$("m_move").onclick = () => {
+  $("addm").style.display = "none";
+  pickPoint("Touchez la carte à l'emplacement de l'adresse", ll => { if (ll) openAddm(ll, true); else $("addm").style.display = "block"; });
+};
+$("m_go").onclick = async () => {
+  const voie = $("m_voie").value.trim(), com = $("m_com").value.trim(), numRaw = $("m_num").value.trim(), suf = $("m_suf").value.trim(), tour = $("m_tour").value;
+  if (!voie) { toast("Indiquez la rue"); return; }
+  if (!com) { toast("Indiquez la commune"); return; }
+  if (!isAdmin && !tour) { toast("Choisissez une de vos tournées"); return; }
+  const numero = numRaw === "" ? null : Number(numRaw);
+  if (numero !== null && (!Number.isInteger(numero) || numero < 0)) { toast("Numéro invalide"); return; }
+  const { data, error } = await SB.rpc("creer_adresse", { p_numero: numero, p_suffixe: suf || null, p_voie: voie, p_commune: com, p_tournee: tour || null, p_lon: mpos.lng, p_lat: mpos.lat });
+  if (error) { toast(error.message); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (row && !items.has(row.id)) addPoint(row);
+  $("addm").style.display = "none"; refresh(false);
+  const it = row && items.get(row.id);
+  map.setView([mpos.lat, mpos.lng], Math.max(map.getZoom(), 18));
+  if (it && layer.hasLayer(it.m)) it.m.openPopup();
+  toast("Adresse ajoutée");
+};
 </script>
 </body>
 </html>
