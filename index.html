@@ -80,6 +80,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .pop select,.pop input,.pop textarea{width:100%;font-size:16px;padding:8px;border-radius:8px;border:2px solid #d1d5db;background:#fff;margin:2px 0}
 .pop select{border-color:var(--c,#999)}
 .pop textarea{resize:vertical;font-family:inherit;font-size:15px}
+.pop .mvb{width:100%;margin-top:10px;padding:8px;font-size:14px;border:1px solid #9ca3af;background:#fff;color:#374151;border-radius:8px}
 .pop .addv{width:100%;margin-top:10px;padding:10px;font-size:15px;font-weight:600;border:2px solid #16a34a;background:#f0fdf4;color:#15803d;border-radius:8px}
 .pop .addv.on{border-color:#9ca3af;background:#f3f4f6;color:#4b5563}
 .pop .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-right:22px}
@@ -338,7 +339,7 @@ async function start() {
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
       p => {
         const it = items.get(p.new.id);
-        if (it) { Object.assign(it.p, p.new); restyle(it); touched(it.p.id); }
+        if (it) { Object.assign(it.p, p.new); it.m.setLatLng([it.p.lat, it.p.lon]); restyle(it); touched(it.p.id); }
         if (p.new.tournee && !tournees.includes(p.new.tournee)) { tournees.push(p.new.tournee); fillTournees(); }
       })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "points" },
@@ -483,13 +484,14 @@ function popupHtml(it) {
   const stat = edit
     ? `<label for="st">Statut</label><select id="st" style="--c:${m.c}">${ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("")}</select>`
     : `<div style="margin-top:8px"><span class="dot" style="background:${m.c};display:inline-block;vertical-align:-1px"></span> <b>${m.l}</b></div>`;
-  return `<div class="pop">${head}${stat}${note}${addBtn}${form}${list}${maj0(p)}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
+  return `<div class="pop">${head}${stat}${note}${addBtn}${form}${list}${maj0(p)}${isAdmin ? '<button class="mvb" id="mv">✥ Déplacer ce point</button>' : ""}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
 }
 
 function wire(it) {
   const pp = it.m.getPopup(), el = pp && pp.getElement(); if (!el) return;
   const st = el.querySelector("#st"); if (!st) return; // lecture seule
   st.onchange = () => { setStatut(it, st.value); const n = NOTE.has(st.value) && it.m.getPopup().getElement().querySelector("#nt"); if (n) n.focus(); };
+  const mv = el.querySelector("#mv"); if (mv) mv.onclick = e => { e.stopPropagation(); movePoint(it); };
   const nt = el.querySelector("#nt");
   if (nt) { let tm; const go = () => { clearTimeout(tm); saveNote(it, nt.value); }; nt.oninput = () => { clearTimeout(tm); tm = setTimeout(go, 800); }; nt.onblur = go; }
   const pl = el.querySelector("#pl"); // « ＋ » : uniquement pour ajouter un calendrier de plus à l'adresse
@@ -1046,6 +1048,21 @@ function renderDel() {
   });
 }
 $("d_q").oninput = $("d_tour").onchange = renderDel;
+
+/* ---------- Déplacer un point (administrateur) ---------- */
+function movePoint(it) {
+  if (!isAdmin) return;
+  const p = it.p, back = () => { if (layer.hasLayer(it.m)) it.m.openPopup(); };
+  it.m.closePopup();
+  pickPoint(`Touchez la nouvelle position de « ${titreOf(p) || "ce point"} »`, async ll => {
+    if (!ll) { back(); return; }
+    const d = Math.round(it.m.getLatLng().distanceTo(ll));
+    const { error } = await SB.rpc("deplacer_point", { p_id: p.id, p_lon: ll.lng, p_lat: ll.lat });
+    if (error) { toast(error.message); back(); return; }
+    p.lat = ll.lat; p.lon = ll.lng; it.m.setLatLng(ll); it.m.redraw && it.m.redraw();
+    map.panTo(ll); back(); toast(`Point déplacé de ${d} m`);
+  });
+}
 
 /* ---------- Doublons : clé numéro + suffixe + rue + commune, ou point déjà là (< 4 m) ---------- */
 const keyOf = (n, suf, voie, com) => [n === null || n === undefined || n === "" ? "" : Number(n), norm(suf), norm(voie), norm(com)].join("|");
