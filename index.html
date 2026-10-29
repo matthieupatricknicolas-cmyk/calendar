@@ -396,8 +396,15 @@ function initGps() {
 function initMap() {
   map = L.map("map", { zoomControl: false, preferCanvas: true, renderer: L.canvas({ tolerance: 10 }) });
   L.control.zoom({ position: "bottomright" }).addTo(map);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, keepBuffer: 1, updateWhenIdle: true,
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, keepBuffer: 1, updateWhenIdle: true,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
+  const ign = L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    { maxZoom: 19, keepBuffer: 1, updateWhenIdle: true, attribution: '© <a href="https://geoservices.ign.fr/">IGN</a> – Géoplateforme' });
+  const FOND = { "Plan (OpenStreetMap)": osm, "Vue aérienne (IGN)": ign };
+  let fond = "Plan (OpenStreetMap)"; try { fond = localStorage.getItem("fond") || fond; } catch (e) {}
+  (FOND[fond] || osm).addTo(map);
+  L.control.layers(FOND, null, { position: "topright" }).addTo(map);
+  map.on("baselayerchange", e => { try { localStorage.setItem("fond", e.name); } catch (x) {} });
   layer = L.layerGroup().addTo(map);
   map.setView([46.77, 5.62], 13);
   initGps();
