@@ -452,7 +452,7 @@ function popupHtml(it) {
   const stat = edit
     ? `<label for="st">Statut</label><select id="st" style="--c:${m.c}">${ST.map(s => `<option value="${s.k}"${s.k === p.statut ? " selected" : ""}>${s.l}</option>`).join("")}</select>`
     : `<div style="margin-top:8px"><span class="dot" style="background:${m.c};display:inline-block;vertical-align:-1px"></span> <b>${m.l}</b></div>`;
-  return `<div class="pop">${head}${form}${list}${stat}${maj0(p)}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
+  return `<div class="pop">${head}${stat}${form}${list}${maj0(p)}${edit ? "" : '<div class="sub" style="margin-top:6px">Lecture seule : cette tournée ne vous est pas affectée.</div>'}</div>`;
 }
 
 function wire(it) {
