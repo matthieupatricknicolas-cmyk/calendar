@@ -163,6 +163,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <div class="msg" id="g_cnt"></div>
       <button class="go" id="g_go">Affecter ces adresses</button>
     </details>
+    <details id="z_det"><summary style="color:#dc2626">Remise à zéro (nouvelle saison)</summary>
+      <p class="sub">Remet <b>tous les points</b> à « À faire » et <b>supprime toutes les ventes</b> (montants à 0). Action irréversible : pensez à exporter les données avant (bouton ⬇ du tableau de bord).</p>
+      <input id="z_in" type="text" placeholder="Tapez RAZ pour confirmer" autocomplete="off" autocapitalize="characters">
+      <button class="go" id="z_go" style="background:#dc2626">Tout remettre à zéro</button>
+    </details>
     <h4>Tournées</h4>
     <div id="t_list"></div>
   </section>
@@ -844,6 +849,20 @@ $("g_go").onclick = () => {
     refresh(false); if (openIt) rerender(openIt);
     renderTournees(); renderG();
     toast(`${data ?? pts.length} adresse${plur(data ?? pts.length, "", "s")} → ${t || "sans tournée"}`);
+  });
+};
+
+/* Remise à zéro globale : tous les points « À faire », toutes les ventes supprimées */
+$("z_go").onclick = () => {
+  if (!isAdmin) return;
+  if ($("z_in").value.trim().toUpperCase() !== "RAZ") { toast("Tapez RAZ dans le champ pour confirmer"); return; }
+  arm($("z_go"), "Dernier appui : TOUT effacer ?", async () => {
+    const { data, error } = await SB.rpc("reinitialiser_points");
+    if (error) { toast(error.message); return; }
+    items.forEach(it => { Object.assign(it.p, { statut: "a_faire", date_passage: null, maj_par: null, maj_le: null }); restyle(it); });
+    ventes.clear(); queue = []; saveQ(); $("z_in").value = "";
+    refresh(false); if (openIt) rerender(openIt); renderTournees();
+    toast(`Remise à zéro : ${data?.points ?? 0} point${plur(data?.points ?? 0, "", "s")} et ${data?.ventes ?? 0} vente${plur(data?.ventes ?? 0, "", "s")} réinitialisés`);
   });
 };
 
