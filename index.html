@@ -239,7 +239,8 @@ const SB = supabase.createClient("https://oczxkctqaxfigsfjzoeu.supabase.co", "sb
 const ST = [
   {k:"a_faire", l:"À faire", c:"#3b82f6"}, {k:"fait", l:"Fait", c:"#16a34a"},
   {k:"partiel", l:"Partiellement fait", s:"Partiel", c:"#0d9488"},
-  {k:"repasse", l:"Repassé", c:"#f59e0b"}, {k:"refus", l:"Refus", c:"#dc2626"}];
+  {k:"repasse", l:"Repasse", c:"#f59e0b"}, {k:"refus", l:"Refus", c:"#dc2626"}];
+const NOTE = new Set(["partiel", "repasse"]); // statuts avec champ « Précisions »
 const meta = k => ST.find(s => s.k === k) || ST[0];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -448,8 +449,8 @@ function popupHtml(it) {
   const head = `<div class="top"><div><h3>${esc(titre)}</h3><div class="sub">${esc(p.nom_commune)}${p.tournee ? " · " + esc(p.tournee) : ""}</div></div>` +
     `</div>`;
   const addBtn = edit && vs.length ? `<button class="addv${it.addOpen ? " on" : ""}" id="pl">${it.addOpen ? "− Annuler l'ajout" : "＋ Ajouter une vente"}</button>` : "";
-  const note = p.statut !== "partiel" ? "" : edit
-    ? `<label for="nt">Précisions (partiellement fait)</label><textarea id="nt" rows="2" maxlength="300" placeholder="Ex. 3 logements sur 8 faits, repasser le samedi">${esc(p.commentaire)}</textarea>`
+  const note = !NOTE.has(p.statut) ? "" : edit
+    ? `<label for="nt">Précisions</label><textarea id="nt" rows="2" maxlength="300" placeholder="Ex. 3 logements sur 8 faits, repasser samedi après 17 h">${esc(p.commentaire)}</textarea>`
     : (p.commentaire ? `<div class="sub" style="margin-top:6px">📝 ${esc(p.commentaire)}</div>` : "");
   const form = edit && (!vs.length || it.addOpen) ? `<div class="vform"><label for="vm">Montant (€)</label><input id="vm" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
     <label for="vp">Paiement</label><select id="vp">${MODES.map(x => `<option value="${x.k}"${x.k === lastMode ? " selected" : ""}>${x.i} ${x.l}</option>`).join("")}</select>
@@ -466,7 +467,7 @@ function popupHtml(it) {
 function wire(it) {
   const pp = it.m.getPopup(), el = pp && pp.getElement(); if (!el) return;
   const st = el.querySelector("#st"); if (!st) return; // lecture seule
-  st.onchange = () => { setStatut(it, st.value); const n = st.value === "partiel" && it.m.getPopup().getElement().querySelector("#nt"); if (n) n.focus(); };
+  st.onchange = () => { setStatut(it, st.value); const n = NOTE.has(st.value) && it.m.getPopup().getElement().querySelector("#nt"); if (n) n.focus(); };
   const nt = el.querySelector("#nt");
   if (nt) { let tm; const go = () => { clearTimeout(tm); saveNote(it, nt.value); }; nt.oninput = () => { clearTimeout(tm); tm = setTimeout(go, 800); }; nt.onblur = go; }
   const pl = el.querySelector("#pl"); // « ＋ » : uniquement pour ajouter un calendrier de plus à l'adresse
@@ -489,13 +490,13 @@ function wire(it) {
 function setStatut(it, statut) {
   if (!canEdit(it.p)) { toast("Tournée non affectée"); return; }
   Object.assign(it.p, { statut, date_passage: parisDay(), maj_le: new Date().toISOString(), maj_par: me });
-  if (statut !== "partiel") { it.p.commentaire = null; queue = queue.filter(q => !(q.k === "note" && q.id === it.p.id)); }
+  if (!NOTE.has(statut)) { it.p.commentaire = null; queue = queue.filter(q => !(q.k === "note" && q.id === it.p.id)); }
   queue = queue.filter(q => !(q.k === "statut" && q.id === it.p.id)); queue.push({ k: "statut", id: it.p.id, statut }); saveQ();
   restyle(it); refresh(false); rerender(it); flush();
 }
 function saveNote(it, texte) {
   texte = String(texte || "").trim().slice(0, 300);
-  if (!canEdit(it.p) || it.p.statut !== "partiel" || (it.p.commentaire || "") === texte) return;
+  if (!canEdit(it.p) || !NOTE.has(it.p.statut) || (it.p.commentaire || "") === texte) return;
   it.p.commentaire = texte || null; it.p.maj_le = new Date().toISOString(); it.p.maj_par = me;
   queue = queue.filter(q => !(q.k === "note" && q.id === it.p.id)); queue.push({ k: "note", id: it.p.id, texte }); saveQ(); flush();
 }
