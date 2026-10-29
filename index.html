@@ -1084,7 +1084,7 @@ function movePoint(it) {
     const { error } = await SB.rpc("deplacer_point", { p_id: p.id, p_lon: ll.lng, p_lat: ll.lat });
     if (error) { toast(error.message); back(); return; }
     p.lat = ll.lat; p.lon = ll.lng; it.m.setLatLng(ll); it.m.redraw && it.m.redraw();
-    map.panTo(ll); toast(`Point déplacé de ${d} m`);
+    toast(`Point déplacé de ${d} m`);
   });
 }
 
