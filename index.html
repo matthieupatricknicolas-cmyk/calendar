@@ -157,7 +157,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 
 <div id="panel"><div class="card">
   <div class="row"><h3 style="margin:0">Administration</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
-  <div class="tabs"><button data-tab="aff" class="on">Affectation</button><button data-tab="tou">Tournées</button><button data-tab="adr">Adresses</button></div>
+  <div class="tabs"><button data-tab="aff" class="on">Affectation</button><button data-tab="tou">Tournées</button><button data-tab="adr">Adresses</button><button data-tab="con" id="tabcon">Connexions</button></div>
 
   <section class="pane" id="tab_aff">
     <div class="sub" id="asum"></div>
@@ -215,6 +215,14 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <div class="msg" id="d_cnt"></div>
       <div id="d_list"></div>
     </div>
+  </section>
+  <section class="pane" id="tab_con" hidden>
+    <h4>En ligne maintenant <span id="c_on_n"></span></h4>
+    <div id="c_on"></div>
+    <h4>50 dernières connexions</h4>
+    <button class="sec2" id="c_ref">↻ Actualiser</button>
+    <div id="c_list"></div>
+    <div class="msg">« En ligne » = page ouverte sur un appareil (même en arrière-plan). L'historique enregistre une ligne à chaque ouverture de l'appli (une seule toutes les 5 minutes par personne).</div>
   </section>
   <datalist id="dl_voie"></datalist><datalist id="dl_com"></datalist>
 </div></div>
@@ -331,6 +339,7 @@ async function start() {
   const { data: u } = await SB.auth.getUser(); me = u?.user?.email || "";
   await SB.rpc("claim_admin");
   isAdmin = (await SB.rpc("is_admin")).data === true;
+  SB.rpc("noter_connexion", { p_ua: navigator.userAgent }); initPresence();
   if (isAdmin) $("adm").style.display = "";
   else {
     const { data: ms } = await SB.from("membres").select("tournee");
@@ -789,10 +798,11 @@ document.querySelectorAll("#panel .tabs button").forEach(b => b.onclick = () => 
 function showTab(t) {
   adm.tab = t; disarm();
   document.querySelectorAll("#panel .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
-  ["aff", "tou", "adr"].forEach(k => $("tab_" + k).hidden = k !== t);
+  ["aff", "tou", "adr", "con"].forEach(k => $("tab_" + k).hidden = k !== t);
   if (t === "aff") renderAdmin();
   if (t === "tou") { fillLists(); fillAdminSelects(); renderTournees(); renderG(); }
   if (t === "adr") { fillLists(); fillAdminSelects(); renderDel(); }
+  if (t === "con") { renderOnline(); loadConn(); }
   $("panel").scrollTop = 0;
 }
 async function loadAdmin() {
@@ -1222,6 +1232,50 @@ $("m_go").onclick = async () => {
   if (it && layer.hasLayer(it.m)) it.m.openPopup();
   toast("Adresse ajoutée");
 };
+
+/* ---------- Connexions : historique + utilisateurs en ligne ---------- */
+const online = new Map(); // email -> [{ state, since, ua }]
+function uaShort(ua) {
+  ua = String(ua || ""); if (!ua) return "—";
+  const dev = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X|Macintosh/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
+  const nav = /Edg\//.test(ua) ? "Edge" : /OPR\/|Opera/.test(ua) ? "Opera" : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Chrome|CriOS/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari" : "";
+  return [dev, nav].filter(Boolean).join(" · ") || "Autre";
+}
+const fmtDT = d => new Date(d).toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+function ago(d) {
+  const m = Math.round((Date.now() - new Date(d)) / 60000);
+  return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.floor(m / 60)} h` : `il y a ${Math.floor(m / 1440)} j`;
+}
+function initPresence() {
+  const ch = SB.channel("presence", { config: { presence: { key: me } } });
+  const meta = () => ({ email: me, state: document.hidden ? "arrière-plan" : "actif", since: initPresence.since, ua: uaShort(navigator.userAgent) });
+  initPresence.since = new Date().toISOString();
+  ch.on("presence", { event: "sync" }, () => {
+    online.clear();
+    const st = ch.presenceState();
+    Object.keys(st).forEach(k => online.set(k, st[k]));
+    $("tabcon").textContent = isAdmin ? `Connexions (${online.size})` : "Connexions";
+    if (isAdmin && adm.tab === "con" && $("panel").style.display === "block") renderOnline();
+  }).subscribe(st => { if (st === "SUBSCRIBED") ch.track(meta()); });
+  addEventListener("visibilitychange", () => ch.track(meta()));
+}
+function renderOnline() {
+  const rows = [...online.entries()].sort((a, b) => natural(who(a[0]), who(b[0])));
+  $("c_on_n").textContent = `(${rows.length})`;
+  $("c_on").innerHTML = rows.map(([e, ms]) => {
+    const act = ms.some(m => m.state === "actif");
+    return `<div class="tr" style="grid-template-columns:auto 1fr auto"><span class="dot" style="background:${act ? "#16a34a" : "#f59e0b"}"></span><div><b>${esc(who(e))}${e === me ? " (vous)" : ""}</b><small>${ms.map(m => esc(m.ua || "")).join(" + ")} · depuis ${fmtDT(ms[0].since)}</small></div><small>${act ? "actif" : "en arrière-plan"}</small></div>`;
+  }).join("") || '<div class="msg">Personne pour le moment.</div>';
+}
+async function loadConn() {
+  const { data, error } = await SB.from("connexions").select("email,le,ua").order("le", { ascending: false }).limit(50);
+  if (error) { $("c_list").innerHTML = `<div class="msg">Erreur : ${esc(error.message)}</div>`; return; }
+  $("c_list").innerHTML = (data || []).map(c =>
+    `<div class="tr" style="grid-template-columns:1fr auto"><div><b>${esc(who(c.email))}</b><small>${esc(uaShort(c.ua))}</small></div><small style="text-align:right">${fmtDT(c.le)}<br>${ago(c.le)}</small></div>`
+  ).join("") || '<div class="msg">Aucune connexion enregistrée.</div>';
+}
+$("c_ref").onclick = () => { renderOnline(); loadConn(); };
+setInterval(() => { if (isAdmin && adm.tab === "con" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); } }, 30000);
 </script>
 </body>
 </html>
