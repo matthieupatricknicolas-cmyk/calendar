@@ -6,6 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1f2937">
+<meta name="apple-mobile-web-app-title" content="Calendrier">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Calendrier 2026</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -123,6 +128,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .cl small{display:block;font-weight:400;font-size:11px;opacity:.85}
 .cl i{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.25);margin-top:3px;overflow:hidden}
 .cl i u{display:block;height:100%;background:#4ade80}
+#pwa{display:none;position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:2600;background:#fff;border-radius:16px;box-shadow:0 4px 22px rgba(0,0,0,.35);padding:12px;align-items:center;gap:12px;max-width:460px;margin:0 auto}
+#pwa img{width:48px;height:48px;border-radius:11px;flex:none}
+#pwa div{flex:1;min-width:0}#pwa b{display:block;font-size:15px}#pwa span{display:block;color:var(--mut);font-size:12.5px;line-height:1.3}
+#pwa button{border:0;border-radius:8px;font-size:14px;padding:9px 12px}
+#pwa .go2{background:var(--bar);color:#fff}#pwa .no2{background:none;color:var(--mut);padding:6px 8px;font-size:18px}
 #pickbar span{flex:1}
 #pickbar button{border:0;background:#fff;color:#7c3aed;border-radius:8px;padding:6px 10px;font-size:14px}
 #main{position:relative}
@@ -268,6 +278,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
     </aside>
   </div>
 </div>
+<div id="pwa"><img src="icon-192.png" alt=""><div><b>Installer l'appli</b><span id="pwa_t"></span></div><button class="go2" id="pwa_go">Installer</button><button class="no2" id="pwa_no" aria-label="Fermer">✕</button></div>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -345,9 +356,10 @@ async function start() {
     const { data: ms } = await SB.from("membres").select("tournee");
     (ms || []).forEach(m => mine.add(m.tournee));
     addEventListener("visibilitychange", () => { if (!document.hidden) checkMine(); });
-    if (!mine.size) { $("wmail").textContent = me; $("wait").style.display = "block"; setInterval(() => { if (!document.hidden) checkMine(); }, 15000); return; }
+    if (!mine.size) { $("wmail").textContent = me; $("wait").style.display = "block"; proposeInstall(); setInterval(() => { if (!document.hidden) checkMine(); }, 15000); return; }
   }
   initMap();
+  proposeInstall();
   $("addb").style.display = "block";
   await loadAll();
   flush();
@@ -1276,6 +1288,35 @@ async function loadConn() {
 }
 $("c_ref").onclick = () => { renderOnline(); loadConn(); };
 setInterval(() => { if (isAdmin && adm.tab === "con" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); } }, 30000);
+
+/* ---------- Installation comme application (écran d'accueil) ---------- */
+if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+let installEvt = null;
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isMobileUA = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || isIOS();
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
+addEventListener("appinstalled", () => { lsSet("pwa_done", "1"); $("pwa").style.display = "none"; toast("Application installée"); });
+function proposeInstall() {
+  if (isStandalone() || !isMobileUA() || lsGet("pwa_done")) return;
+  setTimeout(() => {
+    const box = $("pwa"), go = $("pwa_go");
+    if (installEvt) {
+      $("pwa_t").textContent = "Accès direct depuis l'écran d'accueil, plein écran, et fonctionne même avec un réseau faible.";
+      go.textContent = "Installer"; go.onclick = async () => { box.style.display = "none"; installEvt.prompt(); const r = await installEvt.userChoice; installEvt = null; lsSet("pwa_done", "1"); };
+    } else if (isIOS()) {
+      $("pwa_t").innerHTML = "Touchez <b style='display:inline'>Partager</b> ⎙ puis <b style='display:inline'>« Sur l'écran d'accueil »</b>.";
+      go.textContent = "Compris"; go.onclick = () => { box.style.display = "none"; lsSet("pwa_done", "1"); };
+    } else {
+      $("pwa_t").innerHTML = "Ouvrez le menu du navigateur (⋮) puis <b style='display:inline'>« Installer l'application »</b> ou « Ajouter à l'écran d'accueil ».";
+      go.textContent = "Compris"; go.onclick = () => { box.style.display = "none"; lsSet("pwa_done", "1"); };
+    }
+    $("pwa_no").onclick = () => { box.style.display = "none"; lsSet("pwa_done", "1"); };
+    box.style.display = "flex";
+  }, 3500);
+}
 </script>
 </body>
 </html>
