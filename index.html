@@ -157,6 +157,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password">
   <button class="go" id="signin">Se connecter</button>
   <button class="lnk" id="send">Administrateur : recevoir un lien par e-mail</button>
+  <button class="lnk" id="pwa_btn">📲 Installer Calendo sur ce téléphone</button>
   <div class="msg" id="lmsg"></div>
 </div></div>
 
@@ -1303,23 +1304,37 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 const isMobileUA = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || isIOS();
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
 addEventListener("appinstalled", () => { lsSet("pwa_done", "1"); $("pwa").style.display = "none"; toast("Application installée"); });
-function proposeInstall() {
-  if (isStandalone() || !isMobileUA() || lsGet("pwa_done")) return;
+function proposeInstall(force) {
+  if (isStandalone()) return;
+  if (!force && !isMobileUA()) return;
   setTimeout(() => {
-    const box = $("pwa"), go = $("pwa_go");
+    // refus récent (3 jours) : on n'insiste pas ; « déjà installée » n'est mémorisé que si le navigateur ne sait pas le dire (iPhone, Firefox…)
+    if (!force) { if (+lsGet("pwa_no") > Date.now() - 3 * 864e5) return; if (!installEvt && lsGet("pwa_ok")) return; }
+    const box = $("pwa"), go = $("pwa_go"), close = ok => { box.style.display = "none"; lsSet(ok ? "pwa_ok" : "pwa_no", ok ? "1" : String(Date.now())); };
     if (installEvt) {
       $("pwa_t").textContent = "Accès direct depuis l'écran d'accueil, plein écran, et fonctionne même avec un réseau faible.";
-      go.textContent = "Installer"; go.onclick = async () => { box.style.display = "none"; installEvt.prompt(); const r = await installEvt.userChoice; installEvt = null; lsSet("pwa_done", "1"); };
+      go.textContent = "Installer"; go.onclick = async () => { box.style.display = "none"; installEvt.prompt(); const r = await installEvt.userChoice; if (r && r.outcome === "accepted") lsSet("pwa_ok", "1"); installEvt = null; };
     } else if (isIOS()) {
       $("pwa_t").innerHTML = "Touchez <b style='display:inline'>Partager</b> ⎙ puis <b style='display:inline'>« Sur l'écran d'accueil »</b>.";
-      go.textContent = "Compris"; go.onclick = () => { box.style.display = "none"; lsSet("pwa_done", "1"); };
+      go.textContent = "Compris"; go.onclick = () => close(true);
     } else {
       $("pwa_t").innerHTML = "Ouvrez le menu du navigateur (⋮) puis <b style='display:inline'>« Installer l'application »</b> ou « Ajouter à l'écran d'accueil ».";
-      go.textContent = "Compris"; go.onclick = () => { box.style.display = "none"; lsSet("pwa_done", "1"); };
+      go.textContent = "Compris"; go.onclick = () => close(true);
     }
-    $("pwa_no").onclick = () => { box.style.display = "none"; lsSet("pwa_done", "1"); };
+    $("pwa_no").onclick = () => close(false);
     box.style.display = "flex";
-  }, 3500);
+  }, force ? 0 : 3500);
+}
+$("pwa_btn").onclick = () => proposeInstall(true);
+if (isStandalone() || !isMobileUA()) $("pwa_btn").style.display = "none";
+// nouvelle version de l'appli prise en charge par le service worker : rechargement automatique (sauf saisie en cours)
+if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloaded) return;
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) { toast("Nouvelle version disponible : rechargez la page"); return; }
+    reloaded = true; location.reload();
+  });
 }
 </script>
 </body>

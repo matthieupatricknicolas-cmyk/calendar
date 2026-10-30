@@ -1,5 +1,5 @@
 /* Service worker : coque de l'appli disponible hors-ligne, mises à jour prioritaires quand le réseau répond */
-const V = "calendo-v2", SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./logo.png"];
+const V = "calendo-v3", SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./logo.png"];
 const CDN = ["cdnjs.cloudflare.com", "cdn.jsdelivr.net"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
@@ -11,7 +11,7 @@ self.addEventListener("fetch", e => {
   const u = new URL(r.url);
   if (u.origin === location.origin) {
     // page et fichiers de l'appli : réseau d'abord (version à jour), cache en secours (hors-ligne / réseau lent)
-    e.respondWith(timeout(fetch(r), 5000).then(res => {
+    e.respondWith(timeout(fetch(r, { cache: "no-cache" }), 5000).then(res => {
       if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); }
       return res;
     }).catch(() => caches.match(r, { ignoreSearch: true }).then(m => m || (r.mode === "navigate" ? caches.match("./index.html") : Response.error()))));
