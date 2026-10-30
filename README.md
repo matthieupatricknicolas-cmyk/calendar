@@ -1,9 +1,12 @@
-# Calendrier 2026
+# Calendo
 
-Carte mobile des points de distribution par tournée (Leaflet + OpenStreetMap), données et statuts dans Supabase.
+Suivi partagé des tournées de calendriers : carte mobile (Leaflet, fonds OpenStreetMap ou vue aérienne IGN), statuts, ventes et tableau de bord en temps réel. Installable sur mobile (PWA).
 
-- `index.html` : l'application (hébergée sur GitHub Pages)
-- `data/points.json` : données sources (fid, numéro, suffixe, voie, commune, tournée, lon, lat), converties en WGS84
+- `index.html` : l'application (GitHub Pages) ; `sw.js` + `manifest.webmanifest` + icônes : installation et cache hors-ligne
+- `data/points.json` : données sources (fid, numéro, suffixe, voie, commune, tournée, lon, lat)
+- Back end : Supabase (Postgres + RLS + fonctions RPC + temps réel)
 
-Statuts : à faire / fait / repassé / refus. Connexion par lien magique (e-mail). Le premier utilisateur connecté devient administrateur ; il affecte ensuite les agents aux tournées via le bouton 👥.
-Un agent ne voit que les points de ses tournées (règles RLS côté Supabase).
+Statuts : À faire / Fait / Partiellement fait / Repasse / Refus (précisions libres pour les deux derniers cas partiel/repasse).
+Connexion par identifiant (`binome1` à `binome20`) et mot de passe ; compte `admin` pour l'administration.
+Chaque binôme modifie uniquement ses tournées ; les autres sont visibles en lecture seule.
+Administration (👥) : affectation des tournées, gestion des tournées et des adresses, historique des connexions.

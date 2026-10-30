@@ -1,6 +1,6 @@
 {
-  "name": "Calendrier 2026 – suivi des tournées",
-  "short_name": "Calendrier",
+  "name": "Calendo – suivi des tournées",
+  "short_name": "Calendo",
   "description": "Suivi des tournées de calendriers : carte, statuts et ventes partagés en temps réel.",
   "lang": "fr",
   "start_url": "./",

@@ -6,12 +6,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1f2937">
-<meta name="apple-mobile-web-app-title" content="Calendrier">
+<meta name="apple-mobile-web-app-title" content="Calendo">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>Calendrier 2026</title>
+<title>Calendo – suivi des tournées</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--ink:#111827;--mut:#6b7280;--line:#e5e7eb;--bar:#1f2937;--bg:#f3f4f6}
@@ -148,7 +148,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 </head>
 <body>
 <div id="login"><div class="card">
-  <h2 style="margin-top:0">Calendrier 2026</h2>
+  <h2 style="margin-top:0">Calendo</h2>
   <p class="sub">Connectez-vous avec votre identifiant (binome1 à binome20).</p>
   <input id="email" type="text" placeholder="Identifiant (ex. binome3) ou e-mail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
   <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password">
@@ -278,7 +278,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
     </aside>
   </div>
 </div>
-<div id="pwa"><img src="icon-192.png" alt=""><div><b>Installer l'appli</b><span id="pwa_t"></span></div><button class="go2" id="pwa_go">Installer</button><button class="no2" id="pwa_no" aria-label="Fermer">✕</button></div>
+<div id="pwa"><img src="icon-192.png" alt=""><div><b>Installer Calendo</b><span id="pwa_t"></span></div><button class="go2" id="pwa_go">Installer</button><button class="no2" id="pwa_no" aria-label="Fermer">✕</button></div>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -733,7 +733,7 @@ $("exp").onclick = async () => {
   const jrows = [...jours.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => [dt(d), v.n, r2(v.t), r2(v.especes), r2(v.cheque), r2(v.cb)]);
   const T = k => r2(vs.reduce((a, v) => a + (k === "t" ? v.montant : v.mode === k ? v.montant : 0), 0));
   jrows.push(["Total", vs.length, T("t"), T("especes"), T("cheque"), T("cb")]);
-  const nom = `calendrier_2026_${label.replace(/[^\w-]+/g, "_")}_${parisDay()}`;
+  const nom = `calendo_${label.replace(/[^\w-]+/g, "_")}_${parisDay()}`;
   try {
     await loadXlsx();
     const mk = (aoa, widths, dateCols, moneyCols) => {
