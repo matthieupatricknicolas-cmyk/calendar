@@ -73,6 +73,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .day .v small{display:block;color:var(--mut);font-size:11.5px}
 .tot{display:flex;justify-content:space-between;border-top:2px solid var(--ink);margin-top:8px;padding-top:8px;font-weight:600;font-variant-numeric:tabular-nums}
 .empty{color:var(--mut);font-size:13px;padding:8px 0}
+#gpsh{position:fixed;inset:0;z-index:2600;background:rgba(17,24,39,.55);display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
 #login,#panel,#wait,#addm{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
 .card{max-width:420px;margin:0 auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
 .card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
@@ -309,6 +310,16 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   </nav>
   <datalist id="dl_voie"></datalist><datalist id="dl_com"></datalist>
 </div></div>
+<div id="gpsh"><div class="card">
+  <h3 style="margin:0 0 6px">📍 Localisation bloquée</h3>
+  <p class="msg" style="margin:0 0 8px">Le navigateur a mémorisé un refus et ne pose plus la question. Il faut la réactiver une fois à la main, puis appuyer sur « Réessayer ».</p>
+  <h4>Android (Chrome / appli installée)</h4>
+  <p class="msg" style="margin:0 0 6px">Appuyez sur le cadenas 🔒 (ou ⓘ) à gauche de l'adresse → <b>Autorisations</b> → <b>Position</b> → <b>Autoriser</b>.<br>Appli installée : appui long sur l'icône Calendo → <b>Infos sur l'appli</b> → <b>Autorisations</b> → <b>Position</b>.</p>
+  <h4>iPhone (Safari)</h4>
+  <p class="msg" style="margin:0 0 10px">Bouton <b>aA</b> dans la barre d'adresse → <b>Réglages du site web</b> → <b>Position</b> → <b>Autoriser</b>.<br>Sinon : Réglages → Confidentialité et sécurité → Service de localisation → <b>Safari</b> → « Lors de l'utilisation ».</p>
+  <button class="go" id="gpsh_retry">Réessayer</button>
+  <button class="go" id="gpsh_close" style="background:#6b7280">Fermer</button>
+</div></div>
 <div id="pickbar"><span id="pk_txt">Touchez la carte pour placer l'adresse</span><button id="pk_gps">📍 Ici</button><button id="pickcancel">Annuler</button></div>
 <div id="addm"><div class="card">
   <h3 style="margin:0 0 4px">Nouvelle adresse</h3>
@@ -455,6 +466,14 @@ async function start() {
 }
 
 /* ---------- Position GPS (punaise bleue) ---------- */
+let gpsStart = null;
+const geoState = async () => { try { return (await navigator.permissions.query({ name: "geolocation" })).state; } catch (e) { return "unknown"; } };
+function gpsHelp() { $("gpsh").style.display = "block"; }
+$("gpsh_close").onclick = () => $("gpsh").style.display = "none";
+$("gpsh_retry").onclick = async () => {
+  if (await geoState() === "denied") { toast("Toujours bloquée : modifiez le réglage puis réessayez"); return; }
+  $("gpsh").style.display = "none"; if (gpsStart) gpsStart();
+};
 const PIN = `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 37 14 37s12.5-15 12.5-23.8C26.5 6.4 21 1 14 1z" fill="#2563eb" stroke="#fff" stroke-width="2"/><circle cx="14" cy="13" r="5" fill="#fff"/></svg>`;
 function initGps() {
   let on = false, first = true, pin = null, halo = null;
@@ -463,11 +482,16 @@ function initGps() {
     on = false; map.stopLocate(); btn.classList.remove("on");
     if (pin) { pin.remove(); pin = null; } if (halo) { halo.remove(); halo = null; }
   };
-  btn.onclick = () => {
+  const start = () => {
+    on = true; first = true; btn.classList.add("on"); toast("Recherche de votre position… autorisez-la si le navigateur le demande");
+    map.locate({ watch: true, enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+  };
+  gpsStart = start;
+  btn.onclick = async () => {
     if (on) { off(); toast("Position désactivée"); return; }
     if (!navigator.geolocation) { toast("Localisation non disponible sur cet appareil"); return; }
-    on = true; first = true; btn.classList.add("on"); toast("Recherche de votre position…");
-    map.locate({ watch: true, enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+    if (await geoState() === "denied") { gpsHelp(); return; }   // le navigateur ne reposera plus la question
+    start();
   };
   map.on("locationfound", e => {
     if (!on) return;
@@ -483,7 +507,7 @@ function initGps() {
     if (!on) return;
     if (e.code !== 1 && !first) return; // perte de signal passagère : on garde la dernière position
     off();
-    toast(e.code === 1 ? "Localisation refusée : autorisez-la dans les réglages du navigateur" : "Position indisponible, réessayez en extérieur");
+    if (e.code === 1) gpsHelp(); else toast("Position indisponible, réessayez en extérieur");
   });
 }
 
@@ -1238,7 +1262,7 @@ $("pickcancel").onclick = () => endPick(null);
 $("pk_gps").onclick = () => {
   toast("Recherche de votre position…");
   navigator.geolocation.getCurrentPosition(pos => endPick(L.latLng(pos.coords.latitude, pos.coords.longitude)),
-    () => toast("Position indisponible : touchez la carte"), { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+    err => { if (err && err.code === 1) gpsHelp(); else toast("Position indisponible : touchez la carte"); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
 };
 $("n_pick").onclick = () => {
   $("panel").style.display = "none";
