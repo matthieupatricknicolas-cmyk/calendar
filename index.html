@@ -73,6 +73,13 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .day .v small{display:block;color:var(--mut);font-size:11.5px}
 .tot{display:flex;justify-content:space-between;border-top:2px solid var(--ink);margin-top:8px;padding-top:8px;font-weight:600;font-variant-numeric:tabular-nums}
 .empty{color:var(--mut);font-size:13px;padding:8px 0}
+#drawbar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;right:8px;z-index:2500;display:none;align-items:center;justify-content:space-between;gap:8px;background:#1f2937;color:#fff;border-radius:12px;padding:8px 10px;font-size:14px}
+#drawbar button{border:0;border-radius:8px;padding:6px 10px;background:#fff;color:#111827}
+#selbar{position:fixed;left:0;right:0;bottom:0;z-index:2500;display:none;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.2);padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px);max-width:520px;margin:0 auto}
+#selbar select,#selbar .go{width:100%;font-size:16px;margin:4px 0}#selbar select{padding:9px;border:1px solid #d1d5db;border-radius:8px}
+#selbar .go{padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff}
+#selbar .frow{display:flex;gap:6px}
+.afilt{flex-wrap:wrap}
 #gpsh{position:fixed;inset:0;z-index:2600;background:rgba(17,24,39,.55);display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
 #login,#panel,#wait,#addm{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px 20px;overflow:auto}
 .card{max-width:420px;margin:0 auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
@@ -81,6 +88,12 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 #panel .card{max-width:620px}
 #panel .card{margin-bottom:78px}
 #t_sum{margin:10px 0 4px}
+@media (min-width:900px){
+  #panel{right:auto;width:440px;top:var(--hh,0px);padding-top:16px;box-shadow:4px 0 16px rgba(0,0,0,.18);z-index:1650}
+  #pnav{right:auto;width:440px;z-index:1651}
+  body.pside #main{margin-left:440px}
+  #selbar{left:460px;right:auto;width:420px}
+}
 #pnav{position:fixed;left:0;right:0;bottom:0;z-index:2001;display:flex;background:#fff;border-top:1px solid var(--line);padding:6px 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
 #pnav button{flex:1;border:0;background:none;font-size:11.5px;color:var(--mut);padding:2px 0;position:relative}
 #pnav button b{display:block;font-size:20px;font-weight:400;line-height:1.2}
@@ -97,6 +110,9 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .tc .l{display:flex;justify-content:space-between;gap:8px;font-size:14px}.tc .l span{color:var(--mut);font-size:12.5px;white-space:nowrap}
 .tc .r{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}.tc .r select{margin:0;padding:8px;font-size:15px}.tc.free .r select{border-color:#f59e0b;background:#fffbeb}
 .tc input{margin:0}
+.ev{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 0;font-size:14px}
+.ev small{display:block;color:var(--mut);font-size:12px}.ev:disabled{opacity:.6}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 
 .afilt{display:flex;gap:6px;margin:10px 0 4px}.afilt button{border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:5px 12px;font-size:13px}.afilt button.on{background:#1f2937;color:#fff;border-color:#1f2937}
 .ar{display:grid;grid-template-columns:1fr minmax(130px,44%);gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
@@ -224,7 +240,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   </section>
 
   <section class="pane" id="tab_adr" hidden>
-    <div class="afilt"><button id="s_add" class="on">Ajouter</button><button id="s_aff">Par filtre</button><button id="s_del">Supprimer</button><button id="s_ban">Import BAN</button></div>
+    <div class="afilt"><button id="s_add" class="on">Ajouter</button><button id="s_sel">Zone sur la carte</button><button id="s_aff">Par filtre</button><button id="s_del">Supprimer</button><button id="s_ban">Import BAN</button></div>
     <div class="sub2" id="sub_add">
       <h4>Rechercher une adresse</h4>
       <div class="frow"><input id="n_q" type="text" placeholder="ex. 12 rue de la Saive Voiteur" autocomplete="off"><button class="go nar" id="n_go" style="margin:6px 0;flex:0 0 96px">Chercher</button></div>
@@ -246,6 +262,11 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <select id="d_tour"></select>
       <div class="msg" id="d_cnt"></div>
       <div id="d_list"></div>
+    </div>
+    <div class="sub2" id="sub_sel" hidden>
+      <h4>Sélection par zone</h4>
+      <div class="msg" style="margin:0 0 8px">Tracez un rectangle sur la carte : toutes les adresses qu'il contient peuvent être affectées d'un coup à une tournée (redécoupage rapide d'un quartier).</div>
+      <button class="go" id="q_draw">▭ Dessiner une zone sur la carte</button>
     </div>
     <div class="sub2" id="sub_aff" hidden>
       <h4>Affecter des adresses à une tournée</h4>
@@ -283,6 +304,8 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   <section class="pane" id="tab_equ" hidden>
     <h4>En ligne maintenant <span id="c_on_n"></span></h4>
     <div id="c_on"></div>
+    <h4>Activité récente</h4>
+    <div id="act"></div>
     <h4>50 dernières connexions</h4>
     <button class="sec2" id="c_ref">↻ Actualiser</button>
     <div id="c_list"></div>
@@ -321,6 +344,14 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
   <button class="go" id="gpsh_retry">Réessayer</button>
   <button class="go" id="gpsh_close" style="background:#6b7280">Fermer</button>
 </div></div>
+<div id="drawbar"><span>Faites glisser sur la carte pour tracer la zone</span><button id="q_cancel">Annuler</button></div>
+<div id="selbar">
+  <b id="q_txt"></b><div id="q_sub" class="msg" style="margin:2px 0 6px"></div>
+  <select id="q_dest"></select>
+  <label class="chk"><input id="q_free" type="checkbox">Seulement les adresses sans tournée</label>
+  <button class="go" id="q_go">Affecter</button>
+  <div class="frow"><button class="go" id="q_redo" style="background:#6b7280">Redessiner</button><button class="go" id="q_close" style="background:#6b7280">Fermer</button></div>
+</div>
 <div id="pickbar"><span id="pk_txt">Touchez la carte pour placer l'adresse</span><button id="pk_gps">📍 Ici</button><button id="pickcancel">Annuler</button></div>
 <div id="addm"><div class="card">
   <h3 style="margin:0 0 4px">Nouvelle adresse</h3>
@@ -873,6 +904,16 @@ $("dbtn").onclick = () => $("dash").classList.add("open");
 $("dclose").onclick = () => $("dash").classList.remove("open");
 
 /* ---------- Administration (onglets : affectation · tournées · adresses) ---------- */
+/* Panneau d'administration : plein écran sur mobile, volet latéral à côté de la carte sur ordinateur */
+const DESK = matchMedia("(min-width: 900px)");
+function setPanel(open) {
+  $("panel").style.display = open ? "block" : "none";
+  document.documentElement.style.setProperty("--hh", document.querySelector("header").offsetHeight + "px");
+  document.body.classList.toggle("pside", open && DESK.matches);
+  setTimeout(() => map && map.invalidateSize(), 60);
+}
+const closeForMap = () => { if (!DESK.matches) setPanel(false); };
+DESK.addEventListener("change", () => { if ($("panel").style.display === "block") setPanel(true); });
 const adm = { users: [], owner: new Map(), onlyFree: false, tab: "acc", edit: null };
 const NONE = "__none__";
 const natural = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
@@ -913,8 +954,8 @@ function fillLists() {
   if (coms.has(g)) $("g_com").value = g;
 }
 
-$("adm").onclick = async () => { $("panel").style.display = "block"; showTab(adm.tab); await loadAdmin(); };
-$("pclose").onclick = () => { disarm(); $("panel").style.display = "none"; };
+$("adm").onclick = async () => { setPanel(true); showTab(adm.tab); await loadAdmin(); };
+$("pclose").onclick = () => { disarm(); setPanel(false); };
 document.querySelectorAll("#pnav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
 function showTab(t) {
   adm.tab = t; disarm();
@@ -923,7 +964,7 @@ function showTab(t) {
   if (t === "acc") renderDash();
   if (t === "tou") { fillAdminSelects(); renderTournees(); }
   if (t === "adr") { fillLists(); fillAdminSelects(); subTab(adm.sub || "add"); }
-  if (t === "equ") { renderOnline(); loadConn(); }
+  if (t === "equ") { renderOnline(); loadConn(); loadAct(); }
   if (t === "sai") { if (!$("z_nom").value) $("z_nom").value = defArchNom(); loadArchives(); }
   $("panel").scrollTop = 0;
 }
@@ -1040,7 +1081,7 @@ function renderDash() {
     const v = st.get(t) || { n: 0, d: 0, k: {} }, o = adm.owner.get(t);
     return `<button class="dr" data-t="${esc(t)}"><div class="l"><b>${esc(t)}</b><span>${o ? esc(who(o)) : "sans binôme"} · ${v.n ? Math.round(v.d / v.n * 100) : 0} %</span></div>${pbar(v.n || 1, v.k)}</button>`;
   }).join("") || '<div class="msg">Aucune tournée.</div>';
-  $("k_list").querySelectorAll("[data-t]").forEach(b => b.onclick = () => { $("panel").style.display = "none"; $("ftour").value = b.dataset.t; refresh(true); });
+  $("k_list").querySelectorAll("[data-t]").forEach(b => b.onclick = () => { closeForMap(); $("ftour").value = b.dataset.t; refresh(true); });
 }
 async function creerTournee() {
   const nom = $("t_new").value.trim().replace(/\s+/g, " ");
@@ -1201,12 +1242,13 @@ async function exportArchive(a, btn) {
 }
 
 /* --- Onglet 3 : adresses (création / suppression) --- */
-["add", "aff", "del", "ban"].forEach(k => $("s_" + k).onclick = () => subTab(k));
+["add", "sel", "aff", "del", "ban"].forEach(k => $("s_" + k).onclick = () => subTab(k));
 function subTab(k) {
   disarm(); adm.sub = k;
-  ["add", "aff", "del", "ban"].forEach(x => { $("s_" + x).classList.toggle("on", x === k); $("sub_" + x).hidden = x !== k; });
+  ["add", "sel", "aff", "del", "ban"].forEach(x => { $("s_" + x).classList.toggle("on", x === k); $("sub_" + x).hidden = x !== k; });
   if (k === "del") renderDel();
   if (k === "aff") renderG();
+  if (k !== "sel") { /* quitter la rubrique annule un tracé en cours */ if (zone.on) zoneClose(); }
   if (k === "ban") fillAdminSelects();
 }
 
@@ -1275,10 +1317,10 @@ $("pk_gps").onclick = () => {
     err => { if (err && err.code === 1) gpsHelp(1, err.message); else toast(`Position indisponible${err ? " (erreur " + err.code + ")" : ""} : touchez la carte`); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
 };
 $("n_pick").onclick = () => {
-  $("panel").style.display = "none";
+  setPanel(false);
   const lat = parseFloat($("n_lat").value), lon = parseFloat($("n_lon").value);
   if (isFinite(lat) && isFinite(lon)) map.setView([lat, lon], Math.max(map.getZoom(), 18));
-  pickPoint("Touchez la carte pour placer l'adresse", ll => { $("panel").style.display = "block"; if (ll) setLL(ll.lat, ll.lng); });
+  pickPoint("Touchez la carte pour placer l'adresse", ll => { setPanel(true); if (ll) setLL(ll.lat, ll.lng); });
 };
 
 $("n_create").onclick = async () => {
@@ -1376,7 +1418,7 @@ function findDup(numero, suf, voie, com, lat, lon) {
   return hits.sort((a, b) => b.exact - a.exact || a.d - b.d).slice(0, 4);
 }
 function goTo(p) {
-  $("addm").style.display = "none"; $("panel").style.display = "none";
+  $("addm").style.display = "none"; closeForMap();
   const it = items.get(p.id); if (!it) return;
   if (!layer.hasLayer(it.m)) layer.addLayer(it.m);
   map.setView(it.m.getLatLng(), 19); it.m.openPopup();
@@ -1467,6 +1509,87 @@ function ago(d) {
   const m = Math.round((Date.now() - new Date(d)) / 60000);
   return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.floor(m / 60)} h` : `il y a ${Math.floor(m / 1440)} j`;
 }
+/* --- Sélection d'adresses par rectangle sur la carte (administrateur) --- */
+const zone = { on: false, rect: null, a: null, b: null, pts: [] };
+const zSwallow = e => { if (zone.swallow) { e.stopPropagation(); e.preventDefault(); } };
+function zoneEnd(keepRect) {
+  zone.on = false; $("drawbar").style.display = "none";
+  const c = map.getContainer(); c.style.cursor = ""; c.style.touchAction = "";
+  c.removeEventListener("pointerdown", zDown, true); c.removeEventListener("pointermove", zMove, true); c.removeEventListener("pointerup", zUp, true);
+  map.dragging.enable(); map.touchZoom.enable(); map.doubleClickZoom.enable();
+  if (!keepRect && zone.rect) { zone.rect.remove(); zone.rect = null; }
+}
+function zoneStart() {
+  zoneClose(); closeForMap(); zone.on = true; zone.a = null;
+  $("drawbar").style.display = "flex";
+  const c = map.getContainer(); c.style.cursor = "crosshair"; c.style.touchAction = "none";
+  map.dragging.disable(); map.touchZoom.disable(); map.doubleClickZoom.disable(); map.closePopup();
+  c.addEventListener("pointerdown", zDown, true); c.addEventListener("pointermove", zMove, true); c.addEventListener("pointerup", zUp, true);
+  c.addEventListener("click", zSwallow, true);
+}
+const zLL = e => map.mouseEventToLatLng(e);
+function zDown(e) { if (e.target.closest && e.target.closest(".leaflet-control")) return; e.stopPropagation(); e.preventDefault(); zone.a = zLL(e); zone.p0 = [e.clientX, e.clientY]; if (zone.rect) { zone.rect.remove(); zone.rect = null; } }
+function zMove(e) {
+  if (!zone.a) return; e.stopPropagation(); e.preventDefault();
+  const b = L.latLngBounds(zone.a, zLL(e));
+  if (!zone.rect) zone.rect = L.rectangle(b, { color: "#2563eb", weight: 2, dashArray: "6 4", fillOpacity: .15, interactive: false }).addTo(map); else zone.rect.setBounds(b);
+}
+function zUp(e) {
+  if (!zone.a) return; e.stopPropagation(); e.preventDefault();
+  zone.swallow = true; setTimeout(() => { zone.swallow = false; }, 400); // le « click » qui suit le relâchement ne doit pas ouvrir de popup
+  const moved = Math.hypot(e.clientX - zone.p0[0], e.clientY - zone.p0[1]) > 12, b = L.latLngBounds(zone.a, zLL(e));
+  zone.a = null;
+  if (!moved) { if (zone.rect) { zone.rect.remove(); zone.rect = null; } toast("Faites glisser pour tracer un rectangle"); return; }
+  zone.bounds = b; zoneEnd(true); zoneShow();
+}
+function zoneMatch() {
+  const b = zone.bounds, onlyFree = $("q_free").checked, out = [];
+  items.forEach(({ p }) => { if (b.contains([p.lat, p.lon]) && !(onlyFree && p.tournee)) out.push(p); });
+  return out;
+}
+function zoneShow() {
+  const opts = sortedT().map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  const keep = $("q_dest").value;
+  $("q_dest").innerHTML = `<option value="">Choisir la tournée…</option>${opts}<option value="${NONE}">— Aucune (retirer de toute tournée) —</option>`;
+  if ([...$("q_dest").options].some(o => o.value === keep)) $("q_dest").value = keep;
+  $("selbar").style.display = "block"; zoneCount();
+}
+function zoneCount() {
+  disarm();
+  const all = []; items.forEach(({ p }) => { if (zone.bounds.contains([p.lat, p.lon])) all.push(p); });
+  const sans = all.filter(p => !p.tournee).length;
+  zone.pts = zoneMatch();
+  $("q_txt").textContent = `${all.length} adresse${plur(all.length, "", "s")} dans la zone`;
+  $("q_sub").textContent = `${sans} sans tournée · ${all.length - sans} déjà dans une tournée` + ($("q_free").checked ? ` · ${zone.pts.length} concernée${plur(zone.pts.length, "", "s")}` : "");
+}
+function zoneClose() {
+  disarm(); zoneEnd(false); $("selbar").style.display = "none"; zone.pts = []; zone.bounds = null;
+}
+$("q_draw").onclick = zoneStart;
+$("q_cancel").onclick = () => { zoneClose(); setPanel(true); };
+$("q_redo").onclick = () => { zoneStart(); };
+$("q_close").onclick = () => { zoneClose(); setPanel(true); };
+$("q_free").onchange = zoneCount;
+$("q_go").onclick = () => {
+  const dest = $("q_dest").value;
+  if (!dest) { toast("Choisissez la tournée de destination"); return; }
+  const t = dest === NONE ? null : dest, pts = zone.pts.filter(p => (p.tournee || null) !== t);
+  if (!pts.length) { toast("Aucune adresse à modifier"); return; }
+  arm($("q_go"), `Confirmer : ${pts.length} adresse${plur(pts.length, "", "s")} → ${t || "sans tournée"} ?`, async () => {
+    let n = 0;
+    for (let i = 0; i < pts.length; i += 500) {
+      const chunk = pts.slice(i, i + 500);
+      const { data, error } = await SB.rpc("affecter_points", { p_ids: chunk.map(p => p.id), p_tournee: t });
+      if (error) { toast(error.message); break; }
+      chunk.forEach(p => { p.tournee = t; restyle(items.get(p.id)); }); n += data ?? chunk.length;
+    }
+    refresh(false); if (openIt) rerender(openIt); renderTournees();
+    toast(`${n} adresse${plur(n, "", "s")} → ${t || "sans tournée"}`);
+    zoneClose(); setPanel(true);
+  });
+};
+addEventListener("keydown", e => { if (e.key === "Escape" && zone.on) { zoneClose(); setPanel(true); } });
+
 function initPresence() {
   const ch = SB.channel("presence", { config: { presence: { key: me } } });
   const meta = () => ({ email: me, state: document.hidden ? "arrière-plan" : "actif", since: initPresence.since, ua: uaShort(navigator.userAgent) });
@@ -1487,6 +1610,21 @@ function renderOnline() {
     const act = ms.some(m => m.state === "actif");
     return `<div class="tr" style="grid-template-columns:auto 1fr auto"><span class="dot" style="background:${act ? "#16a34a" : "#f59e0b"}"></span><div><b>${esc(who(e))}${e === me ? " (vous)" : ""}</b><small>${ms.map(m => esc(m.ua || "")).join(" + ")} · depuis ${fmtDT(ms[0].since)}</small></div><small>${act ? "actif" : "en arrière-plan"}</small></div>`;
   }).join("") || '<div class="msg">Personne pour le moment.</div>';
+}
+async function loadAct() {
+  const { data, error } = await SB.from("historique").select("point_id,email,ancien,nouveau,le").order("le", { ascending: false }).limit(60);
+  if (error) { $("act").innerHTML = `<div class="msg">Erreur : ${esc(error.message)}</div>`; return; }
+  const vs = [...ventes.values()].map(v => ({ k: "v", t: Date.parse(v.cree_le), v }));
+  const ev = (data || []).filter(h => !(h.nouveau === "fait" && vs.some(x => x.v.point_id === h.point_id && x.v.par === h.email && Math.abs(x.t - Date.parse(h.le)) < 15000)))
+    .map(h => ({ k: "h", t: Date.parse(h.le), h })).concat(vs).sort((a, b) => b.t - a.t).slice(0, 40);
+  $("act").innerHTML = ev.map(x => {
+    const pid = x.k === "h" ? x.h.point_id : x.v.point_id, p = items.get(pid)?.p;
+    const adr = p ? `${titreOf(p)}, ${p.nom_commune}` : "adresse supprimée";
+    const txt = x.k === "h" ? `<span class="dot" style="background:${meta(x.h.nouveau).c}"></span>${esc(meta(x.h.nouveau).l)}` : `💶 ${EUR.format(Number(x.v.montant))} · ${esc((MODES.find(m => m.k === x.v.mode) || { l: x.v.mode }).l)}`;
+    const who_ = x.k === "h" ? x.h.email : x.v.par;
+    return `<button class="ev" data-p="${pid}"${p ? "" : " disabled"}><div><b>${esc(who(who_))}</b> · ${txt}<small>${esc(adr)}</small></div><small style="text-align:right">${fmtDT(x.t)}<br>${ago(x.t)}</small></button>`;
+  }).join("") || '<div class="msg">Aucune activité enregistrée.</div>';
+  $("act").querySelectorAll("[data-p]").forEach(b => b.onclick = () => { const p = items.get(Number(b.dataset.p))?.p; if (p) goTo(p); });
 }
 async function loadConn() {
   const { data, error } = await SB.from("connexions").select("email,le,ua").order("le", { ascending: false }).limit(50);
@@ -1600,8 +1738,8 @@ $("b_imp").onclick = async () => {
   $("b_prev").hidden = true; ban.rows = []; $("b_imp").disabled = false;
 };
 
-$("c_ref").onclick = () => { renderOnline(); loadConn(); };
-setInterval(() => { if (isAdmin && adm.tab === "equ" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); } }, 30000);
+$("c_ref").onclick = () => { renderOnline(); loadConn(); loadAct(); };
+setInterval(() => { if (isAdmin && adm.tab === "equ" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); loadAct(); } }, 30000);
 
 /* ---------- Installation comme application (écran d'accueil) ---------- */
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
