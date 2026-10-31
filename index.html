@@ -313,8 +313,9 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 <div id="gpsh"><div class="card">
   <h3 style="margin:0 0 6px">📍 Localisation bloquée</h3>
   <p class="msg" style="margin:0 0 8px">Le navigateur a mémorisé un refus et ne pose plus la question. Il faut la réactiver une fois à la main, puis appuyer sur « Réessayer ».</p>
+  <div class="warn" id="gpsh_diag" style="margin:0 0 8px" hidden></div>
   <h4>Android (Chrome / appli installée)</h4>
-  <p class="msg" style="margin:0 0 6px">Appuyez sur le cadenas 🔒 (ou ⓘ) à gauche de l'adresse → <b>Autorisations</b> → <b>Position</b> → <b>Autoriser</b>.<br>Appli installée : appui long sur l'icône Calendo → <b>Infos sur l'appli</b> → <b>Autorisations</b> → <b>Position</b>.</p>
+  <p class="msg" style="margin:0 0 6px">Appuyez sur le cadenas 🔒 (ou ⓘ) à gauche de l'adresse → <b>Autorisations</b> → <b>Position</b> → <b>Autoriser</b>. Vérifiez aussi que la <b>Localisation</b> du téléphone est activée (volet rapide ou Paramètres → Localisation) et que le mode économie d'énergie ne la coupe pas.<br>Appli installée : appui long sur l'icône Calendo → <b>Infos sur l'appli</b> → <b>Autorisations</b> → <b>Position</b>.</p>
   <h4>iPhone (Safari)</h4>
   <p class="msg" style="margin:0 0 10px">Bouton <b>aA</b> dans la barre d'adresse → <b>Réglages du site web</b> → <b>Position</b> → <b>Autoriser</b>.<br>Sinon : Réglages → Confidentialité et sécurité → Service de localisation → <b>Safari</b> → « Lors de l'utilisation ».</p>
   <button class="go" id="gpsh_retry">Réessayer</button>
@@ -468,7 +469,13 @@ async function start() {
 /* ---------- Position GPS (punaise bleue) ---------- */
 let gpsStart = null;
 const geoState = async () => { try { return (await navigator.permissions.query({ name: "geolocation" })).state; } catch (e) { return "unknown"; } };
-function gpsHelp() { $("gpsh").style.display = "block"; }
+async function gpsHelp(code, msg) {
+  const st = await geoState(), d = $("gpsh_diag");
+  d.hidden = false;
+  d.textContent = `Diagnostic : autorisation du site = ${st === "granted" ? "accordée" : st === "denied" ? "bloquée" : st === "prompt" ? "à demander" : "inconnue"}` + (code ? ` · erreur ${code}${msg ? " (" + msg + ")" : ""}` : "") +
+    (st === "granted" && code === 1 ? " → l'autorisation du site est bonne : c'est la localisation du téléphone (ou celle de Chrome) qui est coupée." : "");
+  $("gpsh").style.display = "block";
+}
 $("gpsh_close").onclick = () => $("gpsh").style.display = "none";
 $("gpsh_retry").onclick = async () => {
   if (await geoState() === "denied") { toast("Toujours bloquée : modifiez le réglage puis réessayez"); return; }
@@ -476,14 +483,14 @@ $("gpsh_retry").onclick = async () => {
 };
 const PIN = `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 37 14 37s12.5-15 12.5-23.8C26.5 6.4 21 1 14 1z" fill="#2563eb" stroke="#fff" stroke-width="2"/><circle cx="14" cy="13" r="5" fill="#fff"/></svg>`;
 function initGps() {
-  let on = false, first = true, pin = null, halo = null;
+  let on = false, first = true, pin = null, halo = null, lowAcc = false;
   const btn = $("loc");
   const off = () => {
     on = false; map.stopLocate(); btn.classList.remove("on");
     if (pin) { pin.remove(); pin = null; } if (halo) { halo.remove(); halo = null; }
   };
   const start = () => {
-    on = true; first = true; btn.classList.add("on"); toast("Recherche de votre position… autorisez-la si le navigateur le demande");
+    on = true; first = true; lowAcc = false; btn.classList.add("on"); toast("Recherche de votre position… autorisez-la si le navigateur le demande");
     map.locate({ watch: true, enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
   };
   gpsStart = start;
@@ -506,8 +513,11 @@ function initGps() {
   map.on("locationerror", e => {
     if (!on) return;
     if (e.code !== 1 && !first) return; // perte de signal passagère : on garde la dernière position
+    if (e.code !== 1 && !lowAcc) { // 2e essai sans haute précision (réseau / Wi-Fi), plus tolérant en intérieur
+      lowAcc = true; map.stopLocate(); map.locate({ watch: true, enableHighAccuracy: false, maximumAge: 15000, timeout: 30000 }); return;
+    }
     off();
-    if (e.code === 1) gpsHelp(); else toast("Position indisponible, réessayez en extérieur");
+    if (e.code === 1) gpsHelp(1, e.message); else toast(`Position indisponible (erreur ${e.code}${e.message ? " : " + e.message : ""}). Activez la localisation du téléphone, puis réessayez`);
   });
 }
 
@@ -1262,7 +1272,7 @@ $("pickcancel").onclick = () => endPick(null);
 $("pk_gps").onclick = () => {
   toast("Recherche de votre position…");
   navigator.geolocation.getCurrentPosition(pos => endPick(L.latLng(pos.coords.latitude, pos.coords.longitude)),
-    err => { if (err && err.code === 1) gpsHelp(); else toast("Position indisponible : touchez la carte"); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+    err => { if (err && err.code === 1) gpsHelp(1, err.message); else toast(`Position indisponible${err ? " (erreur " + err.code + ")" : ""} : touchez la carte`); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
 };
 $("n_pick").onclick = () => {
   $("panel").style.display = "none";
