@@ -1,0 +1,5 @@
+numero;suffixe;nom_voie;nom_commune;tournee;lon;lat
+12;;Rue de la Mairie;Exemple-sur-Seine;EXEMPLE 1;4.8357;45.7640
+12;bis;Rue de la Mairie;Exemple-sur-Seine;EXEMPLE 1;4.8359;45.7641
+3;;Impasse des Tilleuls;Exemple-sur-Seine;EXEMPLE 2;4.8402;45.7655
+;;Chemin du Moulin;Exemple-sur-Seine;;4.8450;45.7700

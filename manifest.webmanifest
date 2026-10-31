@@ -1,7 +1,8 @@
 {
   "name": "Calendo – suivi des tournées",
   "short_name": "Calendo",
-  "description": "Suivi des tournées de calendriers : carte, statuts et ventes partagés en temps réel.",
+  "description": "Suivi des tournées de calendriers des sapeurs-pompiers : carte des adresses, statuts de passage, ventes et avancement partagés en temps réel entre les binômes, avec saisie hors connexion.",
+  "categories": ["productivity", "business"],
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
