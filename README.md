@@ -15,10 +15,10 @@ Conçue pour l'amicale de Voiteur-Domblans (Jura), elle est **réutilisable par 
 - Installable sur l'écran d'accueil ; saisie possible hors connexion (file d'attente envoyée au retour du réseau).
 - Un binôme ne modifie que ses tournées ; les autres sont en lecture seule.
 
-**Pour l'administrateur (menu 👥)**
+**Pour l'administrateur (menu 👥)** : 5 rubriques en barre de navigation basse : *Accueil* (tableau de bord : avancement, ventes, alertes « à traiter », une ligne par tournée), *Tournées* (liste unique : binôme, avancement, renommer, supprimer), *Adresses* (ajouter, affecter par filtre, supprimer, import BAN), *Équipe* (connexions et utilisateurs en ligne), *Saison* (remise à zéro et archives).
 - Affectation des tournées aux binômes (et répartition automatique), création / renommage / suppression de tournées.
 - Gestion des adresses : affecter des points à une tournée, déplacer ou supprimer un point.
-- **Import d'une commune depuis la Base Adresse Nationale** (onglet *Import*) : recherche de la commune, aperçu (adresses nouvelles / déjà présentes), affectation éventuelle à une tournée, import par lots ; les doublons sont ignorés.
+- **Import d'une commune depuis la Base Adresse Nationale** (rubrique *Adresses* → *Import BAN*) : recherche de la commune, aperçu (adresses nouvelles / déjà présentes), affectation éventuelle à une tournée, import par lots ; les doublons sont ignorés.
 - Statistiques globales par tournée et par commune.
 - Historique des connexions (200 dernières) et utilisateurs connectés en direct.
 - **Remise à zéro de la saison** : tous les points repassent à *À faire* et les ventes sont supprimées, **les affectations binômes/tournées sont conservées** ; archivage préalable proposé (conservé en base, export .xlsx).
@@ -30,7 +30,7 @@ Les adresses de Calendo (numéro, rue, commune, position GPS) proviennent de la 
 - **Données ouvertes** : publiées sur [data.gouv.fr](https://www.data.gouv.fr/) sous **Licence Ouverte Etalab 2.0** : réutilisation libre, y compris commerciale, à condition de citer la source (« Base Adresse Nationale »).
 - **Ce qui est importé** : uniquement les adresses numérotées (les lieux-dits, numéro 99999 dans la BAN, sont ignorés), avec leurs coordonnées WGS84. Aucune donnée sur les habitants.
 - **Mises à jour** : la BAN évolue en continu. Pour compléter une tournée après coup, relancez l'import d'une commune : seules les adresses absentes de Calendo sont ajoutées (clé numéro + suffixe + rue + commune), les statuts et ventes existants ne sont jamais touchés.
-- **Import dans l'application** : menu 👥 → onglet **Import**. L'application interroge le service de [recherche de communes](https://geo.api.gouv.fr/) puis télécharge le fichier de la commune depuis la BAN ; si le téléchargement direct échoue (réseau, service indisponible), téléchargez le CSV de votre département sur adresse.data.gouv.fr et sélectionnez-le dans le même onglet (le filtre sur la commune choisie s'applique).
+- **Import dans l'application** : menu 👥 → **Adresses** → **Import BAN**. L'application interroge le service de [recherche de communes](https://geo.api.gouv.fr/) puis télécharge le fichier de la commune depuis la BAN ; si le téléchargement direct échoue (réseau, service indisponible), téléchargez le CSV de votre département sur adresse.data.gouv.fr et sélectionnez-le dans le même onglet (le filtre sur la commune choisie s'applique).
 - Fichiers CSV attendus (format BAN) : colonnes `numero`, `rep`, `nom_voie`, `nom_commune`, `lon`, `lat` (et `code_insee` pour filtrer un fichier départemental).
 - Le jeu `data/points.json` de Voiteur-Domblans est issu de cette même base, complété et corrigé à la main.
 
@@ -96,7 +96,7 @@ Prérequis : un compte GitHub et un compte Supabase (offres gratuites suffisante
 ## Adapter Calendo pour une autre caserne
 
 ### 1. Vos adresses et vos tournées
-- **Le plus simple** : menu 👥 → onglet **Import** → cherchez votre commune → *Charger depuis la BAN* → *Importer*. Répétez pour chaque commune du secteur, puis créez les tournées et affectez les adresses depuis l'application (onglets *Tournées* et *Adresses*). Les deux méthodes ci-dessous servent si vous avez déjà vos propres fichiers.
+- **Le plus simple** : menu 👥 → **Adresses** → **Import BAN** → cherchez votre commune → *Charger depuis la BAN* → *Importer*. Répétez pour chaque commune du secteur, puis créez les tournées et affectez les adresses depuis l'application (rubriques *Tournées* et *Adresses*). Les deux méthodes ci-dessous servent si vous avez déjà vos propres fichiers.
 - Remplissez une copie de `data/modele_points.csv` (séparateur `;`) : une ligne par adresse, colonnes `numero;suffixe;nom_voie;nom_commune;tournee;lon;lat`. La tournée peut rester vide (adresse non affectée). Coordonnées en WGS84 (longitude, latitude).
 - Sources possibles : la [Base Adresse Nationale](https://adresse.data.gouv.fr/data/ban/adresses/latest/csv) (par département), un export QGIS/uMap en GeoJSON, ou vos listes existantes géocodées.
 - Générez le SQL : `python3 data/importer_points.py mes_adresses.csv > import.sql` (CSV ou `.geojson`), puis exécutez `import.sql` dans le SQL Editor. L'attribution des adresses aux tournées peut aussi se faire ensuite dans l'application (menu 👥 → Adresses).

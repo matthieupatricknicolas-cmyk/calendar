@@ -78,6 +78,25 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .card input,.card select{width:100%;font-size:16px;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0}
 .card button.go{width:100%;font-size:16px;padding:11px;border:0;border-radius:8px;background:var(--bar);color:#fff;margin-top:6px}
 #panel .card{max-width:620px}
+#panel .card{margin-bottom:78px}
+#t_sum{margin:10px 0 4px}
+#pnav{position:fixed;left:0;right:0;bottom:0;z-index:2001;display:flex;background:#fff;border-top:1px solid var(--line);padding:6px 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
+#pnav button{flex:1;border:0;background:none;font-size:11.5px;color:var(--mut);padding:2px 0;position:relative}
+#pnav button b{display:block;font-size:20px;font-weight:400;line-height:1.2}
+#pnav button.on{color:var(--ink);font-weight:600}
+#pnav em{position:absolute;top:-2px;left:56%;background:#16a34a;color:#fff;font-style:normal;font-size:10.5px;border-radius:9px;padding:0 5px;line-height:15px}#pnav em:empty{display:none}
+.dkp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.dk{background:var(--bg);border-radius:12px;padding:10px}.dk small{display:block;color:var(--mut);font-size:11.5px}.dk b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.pb{height:8px;border-radius:5px;background:#e5e7eb;overflow:hidden;display:flex;margin:5px 0}.pb u{display:block;height:100%}
+.al{width:100%;text-align:left;background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:9px 10px;color:#78350f;font-size:13.5px;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+.al.ok{background:#f0fdf4;border-color:#86efac;color:#166534}
+.dr{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:7px}
+.dr .l{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:14px}.dr .l span{font-weight:400;color:var(--mut);font-size:12.5px;text-align:right}
+.tc{border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:8px}.tc.free{border-color:#f59e0b}
+.tc .l{display:flex;justify-content:space-between;gap:8px;font-size:14px}.tc .l span{color:var(--mut);font-size:12.5px;white-space:nowrap}
+.tc .r{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}.tc .r select{margin:0;padding:8px;font-size:15px}.tc.free .r select{border-color:#f59e0b;background:#fffbeb}
+.tc input{margin:0}
+
 .afilt{display:flex;gap:6px;margin:10px 0 4px}.afilt button{border:1px solid #d1d5db;background:#fff;border-radius:999px;padding:5px 12px;font-size:13px}.afilt button.on{background:#1f2937;color:#fff;border-color:#1f2937}
 .ar{display:grid;grid-template-columns:1fr minmax(130px,44%);gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
 .ar b{display:block;font-size:14px}.ar small{color:var(--mut);font-size:12px}
@@ -114,9 +133,6 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .vr button{border:0;background:none;color:#dc2626;font-size:14px;padding:4px 8px;border-radius:6px}
 .vr button.armed{background:#dc2626;color:#fff}
 .pop .save{width:100%;margin-top:8px;font-size:16px;padding:10px;border:0;border-radius:8px;background:var(--bar);color:#fff}
-.tabs{display:flex;overflow-x:auto;gap:2px;margin:12px 0 8px;border-bottom:1px solid var(--line)}
-.tabs button{flex:1 0 auto;border:0;background:none;padding:10px 5px;font-size:13px;white-space:nowrap;border-bottom:3px solid transparent;color:var(--mut)}
-.tabs button.on{color:var(--ink);border-bottom-color:var(--bar);font-weight:600}
 .pane[hidden],.sub2[hidden]{display:none}
 .frow{display:flex;gap:8px}.frow>*{flex:1;min-width:0}.frow>.nar{flex:0 0 84px}
 .card input[type=checkbox]{width:auto;margin:0 8px 0 0}
@@ -188,46 +204,26 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 
 <div id="panel"><div class="card">
   <div class="row"><h3 style="margin:0">Administration</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
-  <div class="tabs"><button data-tab="aff" class="on">Affectation</button><button data-tab="tou">Tournées</button><button data-tab="adr">Adresses</button><button data-tab="ban">Import</button><button data-tab="con" id="tabcon">Connexions</button></div>
-
-  <section class="pane" id="tab_aff">
-    <div class="sub" id="asum"></div>
-    <div class="atools"><button id="a_rep">⚖ Répartir automatiquement</button><button id="a_clear" class="danger">Retirer toutes les affectations</button></div>
-    <div class="afilt"><button id="af_all" class="on">Toutes</button><button id="af_free">Sans binôme</button></div>
-    <div id="alist"></div>
-    <div class="sub" id="afree" style="margin-top:12px"></div>
+  <section class="pane" id="tab_acc">
+    <div class="dkp"><div class="dk"><small>Avancement global</small><b id="k_pct"></b><div class="pb" id="k_bar"></div><small id="k_sub"></small></div>
+      <div class="dk"><small>Ventes aujourd'hui</small><b id="k_vj"></b><small id="k_vt"></small></div></div>
+    <h4>À traiter</h4>
+    <div id="k_al"></div>
+    <h4>Tournées</h4>
+    <div id="k_list"></div>
   </section>
 
   <section class="pane" id="tab_tou" hidden>
     <div class="sub" id="t_sum"></div>
-    <h4>Nouvelle tournée</h4>
-    <div class="frow"><input id="t_new" type="text" placeholder="Nom de la tournée" maxlength="60" autocomplete="off"><button class="go nar" id="t_add" style="margin:6px 0;flex:0 0 96px">Créer</button></div>
-    <details id="g_det"><summary>Affecter des adresses à une tournée</summary>
-      <label class="sub" for="g_dest">Tournée de destination</label><select id="g_dest"></select>
-      <div class="frow"><div><label class="sub" for="g_com">Commune</label><select id="g_com"></select></div>
-        <div><label class="sub" for="g_par">Numéros</label><select id="g_par"><option value="">Tous</option><option value="pair">Pairs</option><option value="impair">Impairs</option></select></div></div>
-      <label class="sub" for="g_voie">Rue (contient)</label><input id="g_voie" type="text" list="dl_voie" placeholder="ex. rue de la saive" autocomplete="off">
-      <div class="frow"><div><label class="sub" for="g_de">N° de</label><input id="g_de" type="number" inputmode="numeric" min="0"></div>
-        <div><label class="sub" for="g_a">à</label><input id="g_a" type="number" inputmode="numeric" min="0"></div></div>
-      <label class="chk"><input id="g_free" type="checkbox">Seulement les adresses sans tournée</label>
-      <div class="msg" id="g_cnt"></div>
-      <button class="go" id="g_go">Affecter ces adresses</button>
-    </details>
-    <details id="z_det"><summary style="color:#dc2626">Remise à zéro (nouvelle saison)</summary>
-      <p class="sub">Remet <b>tous les points</b> à « À faire » et <b>supprime toutes les ventes</b> (montants à 0). Les tournées, les adresses et <b>les affectations des binômes sont conservées</b>.</p>
-      <label class="chk"><input id="z_arch" type="checkbox" checked>Archiver la saison avant la remise à zéro</label>
-      <input id="z_nom" type="text" maxlength="80" placeholder="Nom de l'archive" autocomplete="off">
-      <input id="z_in" type="text" placeholder="Tapez RAZ pour confirmer" autocomplete="off" autocapitalize="characters">
-      <button class="go" id="z_go" style="background:#dc2626">Tout remettre à zéro</button>
-      <h4>Archives des saisons</h4>
-      <div id="z_arcs"><div class="msg">Aucune archive.</div></div>
-    </details>
-    <h4>Tournées</h4>
+    <div class="frow"><input id="t_new" type="text" placeholder="Nouvelle tournée : nom" maxlength="60" autocomplete="off"><button class="go nar" id="t_add" style="margin:6px 0;flex:0 0 96px">Créer</button></div>
+    <div class="atools"><button id="a_rep">⚖ Répartir automatiquement</button><button id="a_clear" class="danger">Retirer toutes les affectations</button></div>
+    <div class="afilt"><button id="af_all" class="on">Toutes</button><button id="af_free">Sans binôme</button></div>
     <div id="t_list"></div>
+    <div class="sub" id="afree" style="margin-top:12px"></div>
   </section>
 
   <section class="pane" id="tab_adr" hidden>
-    <div class="afilt"><button id="s_add" class="on">Ajouter</button><button id="s_del">Supprimer</button></div>
+    <div class="afilt"><button id="s_add" class="on">Ajouter</button><button id="s_aff">Par filtre</button><button id="s_del">Supprimer</button><button id="s_ban">Import BAN</button></div>
     <div class="sub2" id="sub_add">
       <h4>Rechercher une adresse</h4>
       <div class="frow"><input id="n_q" type="text" placeholder="ex. 12 rue de la Saive Voiteur" autocomplete="off"><button class="go nar" id="n_go" style="margin:6px 0;flex:0 0 96px">Chercher</button></div>
@@ -250,8 +246,20 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <div class="msg" id="d_cnt"></div>
       <div id="d_list"></div>
     </div>
-  </section>
-  <section class="pane" id="tab_ban" hidden>
+    <div class="sub2" id="sub_aff" hidden>
+      <h4>Affecter des adresses à une tournée</h4>
+      <label class="sub" for="g_dest">Tournée de destination</label><select id="g_dest"></select>
+      <div class="frow"><div><label class="sub" for="g_com">Commune</label><select id="g_com"></select></div>
+        <div><label class="sub" for="g_par">Numéros</label><select id="g_par"><option value="">Tous</option><option value="pair">Pairs</option><option value="impair">Impairs</option></select></div></div>
+      <label class="sub" for="g_voie">Rue (contient)</label><input id="g_voie" type="text" list="dl_voie" placeholder="ex. rue de la saive" autocomplete="off">
+      <div class="frow"><div><label class="sub" for="g_de">N° de</label><input id="g_de" type="number" inputmode="numeric" min="0"></div>
+        <div><label class="sub" for="g_a">à</label><input id="g_a" type="number" inputmode="numeric" min="0"></div></div>
+      <label class="chk"><input id="g_free" type="checkbox">Seulement les adresses sans tournée</label>
+      <div class="msg" id="g_cnt"></div>
+      <button class="go" id="g_go">Affecter ces adresses</button>
+    
+    </div>
+    <div class="sub2" id="sub_ban" hidden>
     <h4>Importer les adresses d'une commune</h4>
     <div class="msg" style="margin:0 0 8px">Source : <b>Base Adresse Nationale (BAN)</b>, base de référence des adresses françaises, publiée en données ouvertes (Licence Ouverte Etalab) par l'ANCT, l'IGN et La Poste. Seules les adresses numérotées sont importées ; celles déjà présentes (même numéro, suffixe, rue et commune) sont ignorées.</div>
     <div class="frow"><input id="b_q" type="text" placeholder="Nom de la commune ou code postal" autocomplete="off"><button class="go nar" id="b_go" style="margin:6px 0;flex:0 0 96px">Chercher</button></div>
@@ -268,8 +276,10 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
     <h4>Ou à partir d'un fichier</h4>
     <div class="msg" style="margin-top:0">Si le chargement direct échoue, téléchargez le fichier CSV de votre département sur adresse.data.gouv.fr (rubrique « Base Adresse Nationale »), puis sélectionnez-le ici (les .csv.gz sont acceptés).</div>
     <input id="b_file" type="file" accept=".csv,.gz,.txt,text/csv">
+  </div>
   </section>
-  <section class="pane" id="tab_con" hidden>
+
+  <section class="pane" id="tab_equ" hidden>
     <h4>En ligne maintenant <span id="c_on_n"></span></h4>
     <div id="c_on"></div>
     <h4>50 dernières connexions</h4>
@@ -277,6 +287,26 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
     <div id="c_list"></div>
     <div class="msg">« En ligne » = page ouverte sur un appareil (même en arrière-plan). L'historique enregistre une ligne à chaque ouverture de l'appli (une seule toutes les 5 minutes par personne).</div>
   </section>
+
+  <section class="pane" id="tab_sai" hidden>
+    <h4 style="color:#dc2626">Remise à zéro (nouvelle saison)</h4>
+      <p class="sub">Remet <b>tous les points</b> à « À faire » et <b>supprime toutes les ventes</b> (montants à 0). Les tournées, les adresses et <b>les affectations des binômes sont conservées</b>.</p>
+      <label class="chk"><input id="z_arch" type="checkbox" checked>Archiver la saison avant la remise à zéro</label>
+      <input id="z_nom" type="text" maxlength="80" placeholder="Nom de l'archive" autocomplete="off">
+      <input id="z_in" type="text" placeholder="Tapez RAZ pour confirmer" autocomplete="off" autocapitalize="characters">
+      <button class="go" id="z_go" style="background:#dc2626">Tout remettre à zéro</button>
+      <h4>Archives des saisons</h4>
+      <div id="z_arcs"><div class="msg">Aucune archive.</div></div>
+    
+  </section>
+
+  <nav id="pnav">
+    <button data-tab="acc" class="on"><b>▦</b>Accueil</button>
+    <button data-tab="tou"><b>☰</b>Tournées</button>
+    <button data-tab="adr"><b>⌖</b>Adresses</button>
+    <button data-tab="equ"><b>☺</b>Équipe<em id="eqn"></em></button>
+    <button data-tab="sai"><b>⟲</b>Saison</button>
+  </nav>
   <datalist id="dl_voie"></datalist><datalist id="dl_com"></datalist>
 </div></div>
 <div id="pickbar"><span id="pk_txt">Touchez la carte pour placer l'adresse</span><button id="pk_gps">📍 Ici</button><button id="pickcancel">Annuler</button></div>
@@ -809,7 +839,7 @@ $("dbtn").onclick = () => $("dash").classList.add("open");
 $("dclose").onclick = () => $("dash").classList.remove("open");
 
 /* ---------- Administration (onglets : affectation · tournées · adresses) ---------- */
-const adm = { users: [], owner: new Map(), onlyFree: false, tab: "aff", edit: null };
+const adm = { users: [], owner: new Map(), onlyFree: false, tab: "acc", edit: null };
 const NONE = "__none__";
 const natural = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
 const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -851,16 +881,16 @@ function fillLists() {
 
 $("adm").onclick = async () => { $("panel").style.display = "block"; showTab(adm.tab); await loadAdmin(); };
 $("pclose").onclick = () => { disarm(); $("panel").style.display = "none"; };
-document.querySelectorAll("#panel .tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+document.querySelectorAll("#pnav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
 function showTab(t) {
   adm.tab = t; disarm();
-  document.querySelectorAll("#panel .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
-  ["aff", "tou", "adr", "ban", "con"].forEach(k => $("tab_" + k).hidden = k !== t);
-  if (t === "aff") renderAdmin();
-  if (t === "tou") { fillLists(); fillAdminSelects(); renderTournees(); renderG(); }
-  if (t === "adr") { fillLists(); fillAdminSelects(); renderDel(); }
-  if (t === "ban") { fillAdminSelects(); }
-  if (t === "con") { renderOnline(); loadConn(); }
+  document.querySelectorAll("#pnav button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  ["acc", "tou", "adr", "equ", "sai"].forEach(k => $("tab_" + k).hidden = k !== t);
+  if (t === "acc") renderDash();
+  if (t === "tou") { fillAdminSelects(); renderTournees(); }
+  if (t === "adr") { fillLists(); fillAdminSelects(); subTab(adm.sub || "add"); }
+  if (t === "equ") { renderOnline(); loadConn(); }
+  if (t === "sai") { if (!$("z_nom").value) $("z_nom").value = defArchNom(); loadArchives(); }
   $("panel").scrollTop = 0;
 }
 async function loadAdmin() {
@@ -869,29 +899,10 @@ async function loadAdmin() {
   (m.data || []).forEach(x => users.add(x.email));
   adm.users = [...users].sort((a, b) => natural(who(a), who(b)));
   adm.owner = new Map((m.data || []).map(x => [x.tournee, x.email]));
-  renderAdmin(); if (adm.tab === "tou") renderTournees();
+  renderAdmin(); if (adm.tab === "acc") renderDash();
 }
 
-/* --- Onglet 1 : affectation tournée → binôme --- */
-function renderAdmin() {
-  const cnt = new Map(); adm.owner.forEach(e => cnt.set(e, (cnt.get(e) || 0) + 1));
-  const st = tourStats();
-  const all = sortedT(), free = all.filter(t => !adm.owner.has(t));
-  $("asum").textContent = `${all.length} tournées · ${all.length - free.length} affectées · ${free.length} sans binôme`;
-  $("af_all").classList.toggle("on", !adm.onlyFree); $("af_free").classList.toggle("on", adm.onlyFree);
-  const top = $("panel").scrollTop;
-  $("alist").innerHTML = (adm.onlyFree ? free : all).map(t => {
-    const cur = adm.owner.get(t), v = st.get(t) || { n: 0, d: 0 };
-    const opts = `<option value="">— sans binôme —</option>` + adm.users.map(e =>
-      `<option value="${esc(e)}"${e === cur ? " selected" : ""}>${esc(who(e))} (${cnt.get(e) || 0})</option>`).join("");
-    return `<div class="ar${cur ? "" : " free"}"><div><b>${esc(t)}</b><small>${v.n} pts · ${v.n ? Math.round(v.d / v.n * 100) : 0} % traités</small></div>
-      <select data-t="${esc(t)}">${opts}</select></div>`;
-  }).join("") || '<div class="msg">Toutes les tournées ont un binôme.</div>';
-  $("alist").querySelectorAll("select").forEach(sel => sel.onchange = () => affecter(sel.dataset.t, sel.value));
-  const idle = adm.users.filter(e => !cnt.has(e));
-  $("afree").textContent = idle.length ? `Binômes sans tournée (${idle.length}) : ${idle.map(who).join(", ")}` : "Tous les binômes ont au moins une tournée.";
-  $("panel").scrollTop = top;
-}
+function renderAdmin() { renderTournees(); }
 async function affecter(t, email) {
   const { error } = await SB.rpc("affecter_tournee", { p_tournee: t, p_email: email || null });
   if (error) { toast(error.message); await loadAdmin(); return; }
@@ -926,22 +937,34 @@ $("a_clear").onclick = () => {
     await loadAdmin();
   });
 };
-$("af_all").onclick = () => { adm.onlyFree = false; renderAdmin(); };
-$("af_free").onclick = () => { adm.onlyFree = true; renderAdmin(); };
+$("af_all").onclick = () => { adm.onlyFree = false; renderTournees(); };
+$("af_free").onclick = () => { adm.onlyFree = true; renderTournees(); };
 
-/* --- Onglet 2 : gestion des tournées --- */
+/* --- Rubrique Tournées : liste unique (binôme, avancement, renommer, supprimer) --- */
+const pbar = (n, byK) => `<div class="pb">${ST.filter(x => x.k !== "a_faire").map(x => byK[x.k] ? `<u style="width:${byK[x.k] / n * 100}%;background:${x.c}"></u>` : "").join("")}</div>`;
+function tourStatsK() {
+  const st = new Map();
+  items.forEach(({ p }) => { if (!p.tournee) return; const v = st.get(p.tournee) || { n: 0, d: 0, k: {} }; v.n++; if (p.statut !== "a_faire") { v.d++; v.k[p.statut] = (v.k[p.statut] || 0) + 1; } st.set(p.tournee, v); });
+  return st;
+}
 function renderTournees() {
   disarm();
-  const st = tourStats(), sans = [...items.values()].filter(i => !i.p.tournee).length;
-  $("t_sum").textContent = `${tournees.length} tournée${plur(tournees.length, "", "s")} · ${sans} adresse${plur(sans, "", "s")} sans tournée`;
-  $("t_list").innerHTML = sortedT().map(t => {
-    const v = st.get(t) || { n: 0, d: 0 }, o = adm.owner.get(t), ed = adm.edit === t;
-    return `<div class="tr"><div>${ed ? `<input class="ren" value="${esc(t)}" maxlength="60" data-t="${esc(t)}">` : `<b>${esc(t)}</b>`}` +
-      `<small>${v.n} pts · ${v.n ? Math.round(v.d / v.n * 100) : 0} % traités · ${o ? esc(who(o)) : "sans binôme"}</small></div>` +
+  const top = $("panel").scrollTop, st = tourStatsK(), cnt = new Map(); adm.owner.forEach(e => cnt.set(e, (cnt.get(e) || 0) + 1));
+  const all = sortedT(), free = all.filter(t => !adm.owner.has(t)), sans = [...items.values()].filter(i => !i.p.tournee).length;
+  $("t_sum").textContent = `${all.length} tournée${plur(all.length, "", "s")} · ${all.length - free.length} affectée${plur(all.length - free.length, "", "s")} · ${free.length} sans binôme · ${sans} adresse${plur(sans, "", "s")} sans tournée`;
+  $("af_all").classList.toggle("on", !adm.onlyFree); $("af_free").classList.toggle("on", adm.onlyFree);
+  $("t_list").innerHTML = (adm.onlyFree ? free : all).map(t => {
+    const v = st.get(t) || { n: 0, d: 0, k: {} }, cur = adm.owner.get(t), ed = adm.edit === t, pct = v.n ? Math.round(v.d / v.n * 100) : 0;
+    const opts = `<option value="">— sans binôme —</option>` + adm.users.map(e => `<option value="${esc(e)}"${e === cur ? " selected" : ""}>${esc(who(e))} (${cnt.get(e) || 0})</option>`).join("");
+    return `<div class="tc${cur ? "" : " free"}"><div class="l">${ed ? `<input class="ren" value="${esc(t)}" maxlength="60" data-t="${esc(t)}">` : `<b>${esc(t)}</b>`}<span>${v.n} adr. · ${pct} %</span></div>${pbar(v.n || 1, v.k)}` +
+      `<div class="r"><select data-t="${esc(t)}">${opts}</select>` +
       (ed ? `<button class="ib" data-ok="${esc(t)}" aria-label="Valider">✓</button><button class="ib" data-no="1" aria-label="Annuler">✕</button>`
-          : `<button class="ib" data-ed="${esc(t)}" aria-label="Renommer">✎</button><button class="ib dng" data-rm="${esc(t)}" aria-label="Supprimer">🗑</button>`) + `</div>`;
-  }).join("") || '<div class="msg">Aucune tournée.</div>';
+          : `<button class="ib" data-ed="${esc(t)}" aria-label="Renommer">✎</button><button class="ib dng" data-rm="${esc(t)}" aria-label="Supprimer">🗑</button>`) + `</div></div>`;
+  }).join("") || `<div class="msg">${adm.onlyFree ? "Toutes les tournées ont un binôme." : "Aucune tournée."}</div>`;
+  const idle = adm.users.filter(e => !cnt.has(e));
+  $("afree").textContent = idle.length ? `Binômes sans tournée (${idle.length}) : ${idle.map(who).join(", ")}` : "Tous les binômes ont au moins une tournée.";
   const L = $("t_list");
+  L.querySelectorAll("select").forEach(sel => sel.onchange = () => affecter(sel.dataset.t, sel.value));
   L.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => { adm.edit = b.dataset.ed; renderTournees(); const i = L.querySelector(".ren"); if (i) { i.focus(); i.select(); } });
   L.querySelectorAll("[data-no]").forEach(b => b.onclick = () => { adm.edit = null; renderTournees(); });
   L.querySelectorAll("[data-ok]").forEach(b => b.onclick = () => renommer(b.dataset.ok, L.querySelector(".ren").value));
@@ -951,6 +974,39 @@ function renderTournees() {
     if (!(armed && armed.btn === b)) toast(n ? `${n} adresse${plur(n, "", "s")} deviendr${plur(n, "a", "ont")} « sans tournée »` : "Tournée vide");
     arm(b, "Sûr ?", () => supprimerTournee(t));
   });
+  $("panel").scrollTop = top;
+}
+/* --- Accueil : tableau de bord --- */
+function renderDash() {
+  const tot = items.size, byK = {}; let done = 0;
+  items.forEach(({ p }) => { if (p.statut !== "a_faire") { done++; byK[p.statut] = (byK[p.statut] || 0) + 1; } });
+  $("k_pct").textContent = (tot ? Math.round(done / tot * 100) : 0) + " %";
+  $("k_bar").innerHTML = pbar(tot || 1, byK).replace(/^<div class="pb">|<\/div>$/g, "");
+  $("k_sub").textContent = `${done} / ${tot} adresses traitées`;
+  const jour = parisDay(); let vj = 0, vt = 0, nj = 0;
+  ventes.forEach(v => { vt += Number(v.montant); if (v.jour === jour) { vj += Number(v.montant); nj++; } });
+  $("k_vj").textContent = EUR.format(vj); $("k_vt").textContent = `${nj} vente${plur(nj, "", "s")} · ${EUR.format(vt)} au total`;
+  const st = tourStatsK(), free = tournees.filter(t => !adm.owner.has(t)).length, sans = [...items.values()].filter(i => !i.p.tournee).length;
+  const taken = new Set(adm.owner.values()), idleB = adm.users.filter(e => !taken.has(e)).length;
+  let anyAct = false, last = new Map(); const lim = Date.now() - 3 * 864e5;
+  items.forEach(({ p }) => { if (p.maj_le) { anyAct = true; const t = Date.parse(p.maj_le); if (p.tournee && t > (last.get(p.tournee) || 0)) last.set(p.tournee, t); } });
+  const quiet = !anyAct ? 0 : tournees.filter(t => adm.owner.has(t) && (st.get(t) || { n: 0, d: 0 }).d < (st.get(t) || { n: 0 }).n && (last.get(t) || 0) < lim).length;
+  const al = [];
+  if (free) al.push(["free", `⚠ ${free} tournée${plur(free, "", "s")} sans binôme`]);
+  if (sans) al.push(["sans", `⚠ ${sans} adresse${plur(sans, "", "s")} sans tournée`]);
+  if (idleB) al.push(["idleb", `⚠ ${idleB} binôme${plur(idleB, "", "s")} sans tournée`]);
+  if (quiet) al.push(["quiet", `⏱ ${quiet} tournée${plur(quiet, "", "s")} sans activité depuis 3 jours`]);
+  $("k_al").innerHTML = al.length ? al.map(([k, t]) => `<button class="al" data-go="${k}"><span>${t}</span><b>Voir</b></button>`).join("") : '<div class="al ok">✔ Rien à signaler</div>';
+  $("k_al").querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+    const k = b.dataset.go;
+    if (k === "sans") { adm.sub = "aff"; showTab("adr"); $("g_free").checked = true; renderG(); }
+    else { adm.onlyFree = k === "free" || k === "idleb"; showTab("tou"); }
+  });
+  $("k_list").innerHTML = sortedT().map(t => {
+    const v = st.get(t) || { n: 0, d: 0, k: {} }, o = adm.owner.get(t);
+    return `<button class="dr" data-t="${esc(t)}"><div class="l"><b>${esc(t)}</b><span>${o ? esc(who(o)) : "sans binôme"} · ${v.n ? Math.round(v.d / v.n * 100) : 0} %</span></div>${pbar(v.n || 1, v.k)}</button>`;
+  }).join("") || '<div class="msg">Aucune tournée.</div>';
+  $("k_list").querySelectorAll("[data-t]").forEach(b => b.onclick = () => { $("panel").style.display = "none"; $("ftour").value = b.dataset.t; refresh(true); });
 }
 async function creerTournee() {
   const nom = $("t_new").value.trim().replace(/\s+/g, " ");
@@ -1026,7 +1082,6 @@ $("g_go").onclick = () => {
 
 /* Remise à zéro globale : points « À faire », ventes supprimées ; affectations conservées ; archivage proposé */
 const defArchNom = () => `Saison ${new Date().getFullYear()} – ${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}`;
-$("z_det").addEventListener("toggle", () => { if ($("z_det").open) { if (!$("z_nom").value) $("z_nom").value = defArchNom(); loadArchives(); } });
 $("z_arch").onchange = () => { $("z_nom").disabled = !$("z_arch").checked; disarm(); };
 $("z_go").onclick = () => {
   if (!isAdmin) return;
@@ -1112,12 +1167,13 @@ async function exportArchive(a, btn) {
 }
 
 /* --- Onglet 3 : adresses (création / suppression) --- */
-$("s_add").onclick = () => subTab("add"); $("s_del").onclick = () => subTab("del");
+["add", "aff", "del", "ban"].forEach(k => $("s_" + k).onclick = () => subTab(k));
 function subTab(k) {
-  disarm();
-  $("s_add").classList.toggle("on", k === "add"); $("s_del").classList.toggle("on", k === "del");
-  $("sub_add").hidden = k !== "add"; $("sub_del").hidden = k !== "del";
+  disarm(); adm.sub = k;
+  ["add", "aff", "del", "ban"].forEach(x => { $("s_" + x).classList.toggle("on", x === k); $("sub_" + x).hidden = x !== k; });
   if (k === "del") renderDel();
+  if (k === "aff") renderG();
+  if (k === "ban") fillAdminSelects();
 }
 
 let draft = null, geo = [];
@@ -1385,8 +1441,8 @@ function initPresence() {
     online.clear();
     const st = ch.presenceState();
     Object.keys(st).forEach(k => online.set(k, st[k]));
-    $("tabcon").textContent = isAdmin ? `Connexions (${online.size})` : "Connexions";
-    if (isAdmin && adm.tab === "con" && $("panel").style.display === "block") renderOnline();
+    if (isAdmin) $("eqn").textContent = online.size || "";
+    if (isAdmin && adm.tab === "equ" && $("panel").style.display === "block") renderOnline();
   }).subscribe(st => { if (st === "SUBSCRIBED") ch.track(meta()); });
   addEventListener("visibilitychange", () => ch.track(meta()));
 }
@@ -1511,7 +1567,7 @@ $("b_imp").onclick = async () => {
 };
 
 $("c_ref").onclick = () => { renderOnline(); loadConn(); };
-setInterval(() => { if (isAdmin && adm.tab === "con" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); } }, 30000);
+setInterval(() => { if (isAdmin && adm.tab === "equ" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); } }, 30000);
 
 /* ---------- Installation comme application (écran d'accueil) ---------- */
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
