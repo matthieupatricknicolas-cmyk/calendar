@@ -200,9 +200,13 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <button class="go" id="g_go">Affecter ces adresses</button>
     </details>
     <details id="z_det"><summary style="color:#dc2626">Remise à zéro (nouvelle saison)</summary>
-      <p class="sub">Remet <b>tous les points</b> à « À faire » et <b>supprime toutes les ventes</b> (montants à 0). Action irréversible : pensez à exporter les données avant (bouton ⬇ du tableau de bord).</p>
+      <p class="sub">Remet <b>tous les points</b> à « À faire » et <b>supprime toutes les ventes</b> (montants à 0). Les tournées, les adresses et <b>les affectations des binômes sont conservées</b>.</p>
+      <label class="chk"><input id="z_arch" type="checkbox" checked>Archiver la saison avant la remise à zéro</label>
+      <input id="z_nom" type="text" maxlength="80" placeholder="Nom de l'archive" autocomplete="off">
       <input id="z_in" type="text" placeholder="Tapez RAZ pour confirmer" autocomplete="off" autocapitalize="characters">
       <button class="go" id="z_go" style="background:#dc2626">Tout remettre à zéro</button>
+      <h4>Archives des saisons</h4>
+      <div id="z_arcs"><div class="msg">Aucune archive.</div></div>
     </details>
     <h4>Tournées</h4>
     <div id="t_list"></div>
@@ -985,19 +989,92 @@ $("g_go").onclick = () => {
   });
 };
 
-/* Remise à zéro globale : tous les points « À faire », toutes les ventes supprimées */
+/* Remise à zéro globale : points « À faire », ventes supprimées ; affectations conservées ; archivage proposé */
+const defArchNom = () => `Saison ${new Date().getFullYear()} – ${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}`;
+$("z_det").addEventListener("toggle", () => { if ($("z_det").open) { if (!$("z_nom").value) $("z_nom").value = defArchNom(); loadArchives(); } });
+$("z_arch").onchange = () => { $("z_nom").disabled = !$("z_arch").checked; disarm(); };
 $("z_go").onclick = () => {
   if (!isAdmin) return;
+  const arch = $("z_arch").checked, nom = $("z_nom").value.trim();
+  if (arch && !nom) { toast("Donnez un nom à l'archive"); return; }
   if ($("z_in").value.trim().toUpperCase() !== "RAZ") { toast("Tapez RAZ dans le champ pour confirmer"); return; }
-  arm($("z_go"), "Dernier appui : TOUT effacer ?", async () => {
-    const { data, error } = await SB.rpc("reinitialiser_points");
+  arm($("z_go"), arch ? "Dernier appui : archiver puis remettre à zéro ?" : "Dernier appui : effacer SANS archive ?", async () => {
+    $("z_go").disabled = true;
+    const { data, error } = await SB.rpc("remise_a_zero", { p_archiver: arch, p_nom: arch ? nom : null });
+    $("z_go").disabled = false;
     if (error) { toast(error.message); return; }
     items.forEach(it => { Object.assign(it.p, { statut: "a_faire", date_passage: null, maj_par: null, maj_le: null, commentaire: null }); restyle(it); });
-    ventes.clear(); queue = []; saveQ(); $("z_in").value = "";
-    refresh(false); if (openIt) rerender(openIt); renderTournees();
-    toast(`Remise à zéro : ${data?.points ?? 0} point${plur(data?.points ?? 0, "", "s")} et ${data?.ventes ?? 0} vente${plur(data?.ventes ?? 0, "", "s")} réinitialisés`);
+    ventes.clear(); queue = []; saveQ(); $("z_in").value = ""; $("z_nom").value = defArchNom();
+    refresh(false); if (openIt) rerender(openIt); renderTournees(); loadArchives();
+    toast(`Remise à zéro${data?.archive_id ? " (archive « " + nom + " » créée)" : " sans archive"} : ${data?.points ?? 0} point${plur(data?.points ?? 0, "", "s")} et ${data?.ventes ?? 0} vente${plur(data?.ventes ?? 0, "", "s")}`);
   });
 };
+async function loadArchives() {
+  const { data, error } = await SB.from("archives").select("id,nom,cree_le,cree_par,nb_points,nb_traites,nb_ventes,total").order("cree_le", { ascending: false });
+  const box = $("z_arcs");
+  if (error) { box.innerHTML = `<div class="msg">Erreur : ${esc(error.message)}</div>`; return; }
+  box.innerHTML = (data || []).map(a => `<div class="tr"><div><b>${esc(a.nom)}</b><small>${fmtDT(a.cree_le)} · ${esc(who(a.cree_par))}<br>${a.nb_traites}/${a.nb_points} traités · ${a.nb_ventes} vente${plur(a.nb_ventes, "", "s")} · ${EUR.format(Number(a.total))}</small></div>` +
+    `<button class="ib" data-x="${a.id}" aria-label="Exporter">⬇</button><button class="ib dng" data-d="${a.id}" aria-label="Supprimer">🗑</button></div>`).join("") || '<div class="msg">Aucune archive.</div>';
+  const byId = new Map((data || []).map(a => [String(a.id), a]));
+  box.querySelectorAll("[data-x]").forEach(b => b.onclick = () => exportArchive(byId.get(b.dataset.x), b));
+  box.querySelectorAll("[data-d]").forEach(b => b.onclick = () => arm(b, "Sûr ?", async () => {
+    const { error } = await SB.from("archives").delete().eq("id", Number(b.dataset.d));
+    if (error) toast(error.message); else toast("Archive supprimée");
+    loadArchives();
+  }));
+}
+async function fetchArchive(table, id, cols, key) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await SB.from(table).select(cols).eq("archive_id", id).order(key).range(from, from + 999);
+    if (error) throw error;
+    out.push(...data); if (data.length < 1000) break;
+  }
+  return out;
+}
+async function exportArchive(a, btn) {
+  btn.disabled = true; toast("Préparation de l'export…");
+  try {
+    const [pts, vs] = await Promise.all([
+      fetchArchive("archives_points", a.id, "point_id,tournee,binome,nom_commune,numero,suffixe,nom_voie,statut,commentaire,date_passage,maj_par,lat,lon", "point_id"),
+      fetchArchive("archives_ventes", a.id, "vente_id,point_id,jour,tournee,commune,adresse,montant,mode,par", "vente_id")]);
+    await loadXlsx();
+    const r2 = x => Math.round(x * 100) / 100, dt = d => d ? new Date(d + "T12:00:00") : "";
+    const perPt = new Map(), jours = new Map();
+    vs.forEach(v => {
+      v.montant = Number(v.montant);
+      const x = perPt.get(v.point_id) || { n: 0, s: 0 }; x.n++; x.s += v.montant; perPt.set(v.point_id, x);
+      const j = jours.get(v.jour) || { n: 0, t: 0, especes: 0, cheque: 0, cb: 0 }; j.n++; j.t += v.montant; if (j[v.mode] !== undefined) j[v.mode] += v.montant; jours.set(v.jour, j);
+    });
+    pts.sort((p, q) => natural(p.tournee || "", q.tournee || "") || natural(p.nom_commune || "", q.nom_commune || "") || natural(p.nom_voie || "", q.nom_voie || "") || (p.numero ?? 0) - (q.numero ?? 0));
+    const head = ["Tournée", "Binôme", "Commune", "Numéro", "Suffixe", "Voie", "Statut", "Précisions", "Date dernière modification", "Modifié par", "Nb ventes", "Montant total (€)", "Latitude", "Longitude"];
+    const rows = pts.map(p => { const x = perPt.get(p.point_id); return [p.tournee || "", who(p.binome), p.nom_commune || "", p.numero ?? "", p.suffixe || "", p.nom_voie || "", meta(p.statut).l, p.commentaire || "", dt(p.date_passage), who(p.maj_par), x ? x.n : 0, x ? r2(x.s) : "", p.lat, p.lon]; });
+    vs.sort((p, q) => String(p.jour).localeCompare(String(q.jour)));
+    const vhead = ["Date", "Tournée", "Commune", "Adresse", "Montant (€)", "Mode de paiement", "Vendu par"];
+    const vrows = vs.map(v => [dt(v.jour), v.tournee || "", v.commune || "", v.adresse || "", v.montant, modeOf(v.mode).l, who(v.par)]);
+    const jhead = ["Date", "Ventes", "Montant (€)", "Espèces (€)", "Chèque (€)", "CB (€)"];
+    const jrows = [...jours.entries()].sort((p, q) => p[0].localeCompare(q[0])).map(([d, v]) => [dt(d), v.n, r2(v.t), r2(v.especes), r2(v.cheque), r2(v.cb)]);
+    const T = k => r2(vs.reduce((s, v) => s + (k === "t" ? v.montant : v.mode === k ? v.montant : 0), 0));
+    jrows.push(["Total", vs.length, T("t"), T("especes"), T("cheque"), T("cb")]);
+    const mk = (aoa, widths, dateCols, moneyCols) => {
+      const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
+      for (let r = 1; r < aoa.length; r++) {
+        dateCols.forEach(c => { const x = ws[XLSX.utils.encode_cell({ r, c })]; if (x && x.t === "d") x.z = "dd/mm/yyyy"; });
+        moneyCols.forEach(c => { const x = ws[XLSX.utils.encode_cell({ r, c })]; if (x && x.t === "n") x.z = "#,##0.00"; });
+      }
+      ws["!cols"] = widths.map(w => ({ wch: w }));
+      ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(aoa.length - 1, 0), c: aoa[0].length - 1 } }) };
+      return ws;
+    };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, mk([head, ...rows], [14, 14, 20, 8, 8, 30, 16, 28, 22, 16, 11, 14, 11, 11], [8], [11]), "Points");
+    XLSX.utils.book_append_sheet(wb, mk([vhead, ...vrows], [12, 14, 20, 34, 12, 18, 16], [0], [4]), "Ventes");
+    XLSX.utils.book_append_sheet(wb, mk([jhead, ...jrows], [12, 8, 13, 13, 13, 13], [0], [2, 3, 4, 5]), "Par jour");
+    XLSX.writeFile(wb, `calendo_archive_${a.nom.replace(/[^\w-]+/g, "_")}.xlsx`, { cellDates: true });
+    toast("Archive exportée");
+  } catch (e) { toast("Export impossible : " + (e.message || e)); }
+  btn.disabled = false;
+}
 
 /* --- Onglet 3 : adresses (création / suppression) --- */
 $("s_add").onclick = () => subTab("add"); $("s_del").onclick = () => subTab("del");
