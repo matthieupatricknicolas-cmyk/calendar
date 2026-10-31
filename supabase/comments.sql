@@ -89,3 +89,4 @@ comment on function public.repartir_tournees() is 'Admin : répartit les tourné
 comment on function public.retirer_affectations() is 'Admin : supprime toutes les affectations binôme/tournée.';
 comment on function public.remise_a_zero(boolean, text) is 'Admin : remet tous les points à a_faire et supprime les ventes, en archivant d''abord la saison si demandé. Les affectations binôme/tournée sont conservées.';
 comment on function public.reinitialiser_points() is 'Ancienne version de la remise à zéro, sans archivage (conservée pour compatibilité).';
+comment on function public.importer_adresses(jsonb, text) is 'Admin : import en lot d''adresses (Base Adresse Nationale ou autre), 2000 max par appel ; ignore les doublons (clé numéro-suffixe-voie-commune) et les lignes invalides.';

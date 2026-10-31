@@ -291,6 +291,47 @@ begin
   return n;
 end $$;
 
+create or replace function public.importer_adresses(p_rows jsonb, p_tournee text default null) returns jsonb
+language plpgsql security definer set search_path to ''
+as $$
+declare n_in integer; n_tot integer;
+begin
+  if not public.is_admin() then raise exception 'acces refuse'; end if;
+  if jsonb_typeof(p_rows) <> 'array' then raise exception 'liste attendue'; end if;
+  n_tot := jsonb_array_length(p_rows);
+  if n_tot > 2000 then raise exception 'maximum 2000 adresses par envoi'; end if;
+  if p_tournee is not null and not exists (select 1 from public.tournees where nom = p_tournee) then raise exception 'tournee inconnue'; end if;
+  with src as (
+    select distinct on (num, lower(coalesce(suf,'')), lower(voie), lower(com))
+           num, suf, voie, com, lon, lat, fid
+      from (
+        select nullif(r->>'numero','')::integer as num,
+               nullif(btrim(r->>'suffixe'),'') as suf,
+               btrim(r->>'voie') as voie,
+               btrim(r->>'commune') as com,
+               (r->>'lon')::double precision as lon,
+               (r->>'lat')::double precision as lat,
+               nullif(r->>'fid','')::integer as fid
+          from jsonb_array_elements(p_rows) r
+      ) s
+     where voie <> '' and com <> '' and length(voie) <= 120 and length(com) <= 80 and length(coalesce(suf,'')) <= 10
+       and (num is null or num between 0 and 9999)
+       and lat between 41 and 52 and lon between -6 and 10
+  ), ins as (
+    insert into public.points (fid, numero, suffixe, nom_voie, nom_commune, tournee, lon, lat)
+    select s.fid, s.num, s.suf, s.voie, s.com, p_tournee, s.lon, s.lat
+      from src s
+     where not exists (select 1 from public.points x
+                        where x.numero is not distinct from s.num
+                          and lower(coalesce(x.suffixe,'')) = lower(coalesce(s.suf,''))
+                          and lower(btrim(x.nom_voie)) = lower(s.voie)
+                          and lower(btrim(x.nom_commune)) = lower(s.com))
+    returning 1
+  )
+  select count(*) into n_in from ins;
+  return jsonb_build_object('recues', n_tot, 'ajoutees', n_in, 'ignorees', n_tot - n_in);
+end $$;
+
 create or replace function public.creer_tournee(p_nom text) returns void
 language plpgsql security definer set search_path to ''
 as $$

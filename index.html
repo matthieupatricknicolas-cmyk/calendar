@@ -114,8 +114,8 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 .vr button{border:0;background:none;color:#dc2626;font-size:14px;padding:4px 8px;border-radius:6px}
 .vr button.armed{background:#dc2626;color:#fff}
 .pop .save{width:100%;margin-top:8px;font-size:16px;padding:10px;border:0;border-radius:8px;background:var(--bar);color:#fff}
-.tabs{display:flex;gap:2px;margin:12px 0 8px;border-bottom:1px solid var(--line)}
-.tabs button{flex:1;border:0;background:none;padding:10px 2px;font-size:14.5px;border-bottom:3px solid transparent;color:var(--mut)}
+.tabs{display:flex;overflow-x:auto;gap:2px;margin:12px 0 8px;border-bottom:1px solid var(--line)}
+.tabs button{flex:1 0 auto;border:0;background:none;padding:10px 5px;font-size:13px;white-space:nowrap;border-bottom:3px solid transparent;color:var(--mut)}
 .tabs button.on{color:var(--ink);border-bottom-color:var(--bar);font-weight:600}
 .pane[hidden],.sub2[hidden]{display:none}
 .frow{display:flex;gap:8px}.frow>*{flex:1;min-width:0}.frow>.nar{flex:0 0 84px}
@@ -188,7 +188,7 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
 
 <div id="panel"><div class="card">
   <div class="row"><h3 style="margin:0">Administration</h3><button class="btn" style="background:#1f2937" id="pclose">Fermer</button></div>
-  <div class="tabs"><button data-tab="aff" class="on">Affectation</button><button data-tab="tou">Tournées</button><button data-tab="adr">Adresses</button><button data-tab="con" id="tabcon">Connexions</button></div>
+  <div class="tabs"><button data-tab="aff" class="on">Affectation</button><button data-tab="tou">Tournées</button><button data-tab="adr">Adresses</button><button data-tab="ban">Import</button><button data-tab="con" id="tabcon">Connexions</button></div>
 
   <section class="pane" id="tab_aff">
     <div class="sub" id="asum"></div>
@@ -250,6 +250,24 @@ h3.sec{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:
       <div class="msg" id="d_cnt"></div>
       <div id="d_list"></div>
     </div>
+  </section>
+  <section class="pane" id="tab_ban" hidden>
+    <h4>Importer les adresses d'une commune</h4>
+    <div class="msg" style="margin:0 0 8px">Source : <b>Base Adresse Nationale (BAN)</b>, base de référence des adresses françaises, publiée en données ouvertes (Licence Ouverte Etalab) par l'ANCT, l'IGN et La Poste. Seules les adresses numérotées sont importées ; celles déjà présentes (même numéro, suffixe, rue et commune) sont ignorées.</div>
+    <div class="frow"><input id="b_q" type="text" placeholder="Nom de la commune ou code postal" autocomplete="off"><button class="go nar" id="b_go" style="margin:6px 0;flex:0 0 96px">Chercher</button></div>
+    <div class="res" id="b_res"></div>
+    <div id="b_sel" class="msg" hidden></div>
+    <button class="go" id="b_load" hidden>Charger depuis la BAN</button>
+    <div class="msg" id="b_st"></div>
+    <div id="b_prev" hidden>
+      <h4>Aperçu</h4>
+      <div id="b_sum" class="msg" style="margin-top:0"></div>
+      <select id="b_tour"></select>
+      <button class="go" id="b_imp">Importer les nouvelles adresses</button>
+    </div>
+    <h4>Ou à partir d'un fichier</h4>
+    <div class="msg" style="margin-top:0">Si le chargement direct échoue, téléchargez le fichier CSV de votre département sur adresse.data.gouv.fr (rubrique « Base Adresse Nationale »), puis sélectionnez-le ici (les .csv.gz sont acceptés).</div>
+    <input id="b_file" type="file" accept=".csv,.gz,.txt,text/csv">
   </section>
   <section class="pane" id="tab_con" hidden>
     <h4>En ligne maintenant <span id="c_on_n"></span></h4>
@@ -397,7 +415,7 @@ async function start() {
         if (p.new.tournee && !tournees.includes(p.new.tournee)) { tournees.push(p.new.tournee); fillTournees(); }
       })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "points" },
-      p => { if (!items.has(p.new.id)) { addPoint(p.new); refresh(false); } })
+      p => { if (!items.has(p.new.id)) { addPoint(p.new); clearTimeout(rfT); rfT = setTimeout(() => refresh(false), 500); } })
     .on("postgres_changes", { event: "DELETE", schema: "public", table: "points" }, p => removePoint(p.old.id))
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "ventes" },
       p => { ventes.set(p.new.id, normV(p.new)); touched(p.new.point_id); })
@@ -516,6 +534,7 @@ const modeOf = k => MODES.find(m => m.k === k) || MODES[0];
 const ventes = new Map();
 const normV = v => ({ id: v.id, point_id: v.point_id, montant: Number(v.montant), mode: v.mode, jour: v.jour, par: v.par, cree_le: v.cree_le });
 const ventesOf = pid => [...ventes.values()].filter(v => v.point_id === pid).sort((a, b) => String(a.cree_le).localeCompare(String(b.cree_le)));
+let rfT = null; // regroupe les rafraîchissements lors d'imports en masse
 let openIt = null, lastMode = "especes";
 
 function addPoint(p) {
@@ -816,8 +835,9 @@ function fillAdminSelects() {
   const g = keep("g_dest"), n = keep("n_tour"), d = keep("d_tour");
   $("g_dest").innerHTML = `<option value="">Choisir la tournée…</option>` + opts + `<option value="${NONE}">— Aucune (retirer de toute tournée) —</option>`;
   $("n_tour").innerHTML = `<option value="">Sans tournée</option>` + opts;
+  $("b_tour").innerHTML = `<option value="">Sans tournée (à affecter ensuite)</option>` + opts;
   $("d_tour").innerHTML = `<option value="">Toutes les tournées</option><option value="${SANS}">(sans tournée)</option>` + opts;
-  [["g_dest", g], ["n_tour", n], ["d_tour", d]].forEach(([id, v]) => { if ([...$(id).options].some(o => o.value === v)) $(id).value = v; });
+  [["g_dest", g], ["n_tour", n], ["d_tour", d], ["b_tour", $("b_tour").value]].forEach(([id, v]) => { if ([...$(id).options].some(o => o.value === v)) $(id).value = v; });
 }
 function fillLists() {
   const voies = new Set(), coms = new Set();
@@ -835,10 +855,11 @@ document.querySelectorAll("#panel .tabs button").forEach(b => b.onclick = () => 
 function showTab(t) {
   adm.tab = t; disarm();
   document.querySelectorAll("#panel .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
-  ["aff", "tou", "adr", "con"].forEach(k => $("tab_" + k).hidden = k !== t);
+  ["aff", "tou", "adr", "ban", "con"].forEach(k => $("tab_" + k).hidden = k !== t);
   if (t === "aff") renderAdmin();
   if (t === "tou") { fillLists(); fillAdminSelects(); renderTournees(); renderG(); }
   if (t === "adr") { fillLists(); fillAdminSelects(); renderDel(); }
+  if (t === "ban") { fillAdminSelects(); }
   if (t === "con") { renderOnline(); loadConn(); }
   $("panel").scrollTop = 0;
 }
@@ -1384,6 +1405,111 @@ async function loadConn() {
     `<div class="tr" style="grid-template-columns:1fr auto"><div><b>${esc(who(c.email))}</b><small>${esc(uaShort(c.ua))}</small></div><small style="text-align:right">${fmtDT(c.le)}<br>${ago(c.le)}</small></div>`
   ).join("") || '<div class="msg">Aucune connexion enregistrée.</div>';
 }
+
+/* ===== Import des adresses d'une commune depuis la Base Adresse Nationale (données ouvertes) ===== */
+const ban = { commune: null, rows: [] };
+$("b_go").onclick = async () => {
+  const q = $("b_q").value.trim(); if (q.length < 2) { toast("Saisissez au moins 2 caractères"); return; }
+  $("b_res").innerHTML = "<small>Recherche…</small>";
+  try {
+    const url = "https://geo.api.gouv.fr/communes?" + (/^\d{5}$/.test(q) ? "codePostal=" : "nom=") + encodeURIComponent(q) + "&fields=nom,code,codesPostaux,codeDepartement&boost=population&limit=8";
+    const r = await (await fetch(url)).json();
+    $("b_res").innerHTML = r.length ? r.map((c, i) => `<button data-i="${i}">${esc(c.nom)}<small>${esc(c.code)} · dép. ${esc(c.codeDepartement)} · ${esc((c.codesPostaux || []).join(", "))}</small></button>`).join("") : "<small>Aucune commune trouvée</small>";
+    $("b_res").querySelectorAll("button").forEach(b => b.onclick = () => {
+      ban.commune = r[+b.dataset.i]; ban.rows = [];
+      $("b_res").innerHTML = ""; $("b_prev").hidden = true; $("b_st").textContent = "";
+      $("b_sel").hidden = false; $("b_sel").innerHTML = `Commune choisie : <b>${esc(ban.commune.nom)}</b> (${esc(ban.commune.code)})`;
+      $("b_load").hidden = false;
+    });
+  } catch (e) { $("b_res").innerHTML = "<small>Service de recherche indisponible (réseau ?)</small>"; }
+};
+$("b_q").onkeydown = e => { if (e.key === "Enter") $("b_go").click(); };
+
+function banParse(text, insee) {
+  const lines = text.split(/\r?\n/); if (lines.length < 2) return [];
+  const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ";" : ",";
+  const split = l => { const o = []; let c = "", q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === sep && !q) { o.push(c); c = ""; } else c += ch; } o.push(c); return o; };
+  const H = split(lines[0]).map(h => h.trim().toLowerCase().replace(/^﻿/, ""));
+  const ix = (...n) => { for (const x of n) { const i = H.indexOf(x); if (i >= 0) return i; } return -1; };
+  const iN = ix("numero"), iR = ix("rep", "suffixe"), iV = ix("nom_voie"), iC = ix("nom_commune", "commune_nom"), iLo = ix("lon", "longitude"), iLa = ix("lat", "latitude"), iI = ix("code_insee", "code_commune_insee", "commune_insee");
+  if (iN < 0 || iV < 0 || iC < 0 || iLo < 0 || iLa < 0) throw new Error("Colonnes BAN non reconnues (numero, rep, nom_voie, nom_commune, lon, lat)");
+  const out = [];
+  for (let k = 1; k < lines.length; k++) {
+    if (!lines[k]) continue;
+    const c = split(lines[k]);
+    if (insee && iI >= 0 && c[iI] !== insee) continue;
+    const num = parseInt(c[iN], 10), lon = parseFloat(c[iLo]), lat = parseFloat(c[iLa]);
+    if (!(num >= 0 && num < 9999) || !isFinite(lon) || !isFinite(lat) || !c[iV] || !c[iC]) continue; // 99999 = lieu-dit
+    out.push({ numero: num, suffixe: iR >= 0 ? (c[iR] || "").trim() : "", voie: c[iV].trim(), commune: c[iC].trim(), lon, lat });
+  }
+  return out;
+}
+async function banFetchText(url, gz) {
+  const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status);
+  if (!gz) return await r.text();
+  if (typeof DecompressionStream === "undefined") throw new Error("décompression non supportée");
+  return await new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).text();
+}
+$("b_load").onclick = async () => {
+  const c = ban.commune; if (!c) return;
+  $("b_load").disabled = true; $("b_prev").hidden = true;
+  const dep = c.codeDepartement, tries = [
+    [`https://plateforme.adresse.data.gouv.fr/ban/communes/${c.code}/download/csv-legacy/adresses`, false, c.code],
+    [`https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-${dep}.csv.gz`, true, c.code]];
+  let rows = null, err = "";
+  for (const [u, gz, insee] of tries) {
+    $("b_st").textContent = "Téléchargement depuis la BAN…";
+    try { rows = banParse(await banFetchText(u, gz), insee); if (rows.length) break; err = "fichier vide"; } catch (e) { err = e.message; rows = null; }
+  }
+  $("b_load").disabled = false;
+  if (!rows || !rows.length) { $("b_st").textContent = "Chargement impossible (" + err + "). Utilisez l'import par fichier ci-dessous."; return; }
+  banPreview(rows);
+};
+$("b_file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $("b_st").textContent = "Lecture du fichier…";
+  try {
+    let text;
+    if (/\.gz$/i.test(f.name)) text = await new Response(f.stream().pipeThrough(new DecompressionStream("gzip"))).text(); else text = await f.text();
+    const rows = banParse(text, ban.commune ? ban.commune.code : null);
+    if (!rows.length) { $("b_st").textContent = "Aucune adresse numérotée trouvée" + (ban.commune ? " pour la commune choisie (code " + ban.commune.code + ")" : "") + ". Choisissez d'abord la commune pour filtrer un fichier départemental."; return; }
+    banPreview(rows);
+  } catch (er) { $("b_st").textContent = "Fichier illisible : " + er.message; }
+  e.target.value = "";
+};
+function banPreview(rows) {
+  const have = new Set(); items.forEach(({ p }) => have.add(keyOf(p.numero, p.suffixe, p.nom_voie, p.nom_commune)));
+  const seen = new Set(), fresh = [];
+  rows.forEach(r => { const k = keyOf(r.numero, r.suffixe, r.voie, r.commune); if (have.has(k) || seen.has(k)) return; seen.add(k); fresh.push(r); });
+  ban.rows = fresh;
+  const voies = new Set(fresh.map(r => r.voie.toLowerCase())).size;
+  $("b_st").textContent = "";
+  $("b_sum").innerHTML = `<b>${rows.length}</b> adresses numérotées dans la BAN · <b>${fresh.length}</b> nouvelles (${voies} rue${voies > 1 ? "s" : ""}) · ${rows.length - fresh.length} déjà présentes ou en double.`;
+  $("b_imp").disabled = !fresh.length; $("b_prev").hidden = false; fillAdminSelects();
+}
+$("b_imp").onclick = async () => {
+  const rows = ban.rows; if (!rows.length || $("b_imp").disabled) return;
+  const tour = $("b_tour").value || null;
+  if (!confirm(`Importer ${rows.length} adresses${tour ? " dans la tournée « " + tour + " »" : " sans tournée"} ?`)) return;
+  $("b_imp").disabled = true; let ok = 0, ign = 0;
+  for (let i = 0; i < rows.length; i += 500) {
+    $("b_st").textContent = `Import… ${Math.min(i + 500, rows.length)} / ${rows.length}`;
+    const { data, error } = await SB.rpc("importer_adresses", { p_rows: rows.slice(i, i + 500), p_tournee: tour });
+    if (error) { toast(error.message); break; }
+    ok += data.ajoutees; ign += data.ignorees;
+  }
+  // récupère les nouveaux points (le temps réel peut en manquer lors d'un import massif)
+  const max = Math.max(0, ...items.keys());
+  for (let from = 0; ; from += 1000) {
+    const { data } = await SB.from("points").select("id,fid,numero,suffixe,nom_voie,nom_commune,tournee,statut,commentaire,date_passage,lon,lat,maj_par,maj_le").gt("id", max).order("id").range(from, from + 999);
+    (data || []).forEach(p => { if (!items.has(p.id)) addPoint(p); });
+    if (!data || data.length < 1000) break;
+  }
+  refresh(false); fillLists();
+  $("b_st").textContent = `${ok} adresses ajoutées${ign ? `, ${ign} ignorées` : ""}. Les autres utilisateurs verront les nouveautés en rechargeant la page.`;
+  $("b_prev").hidden = true; ban.rows = []; $("b_imp").disabled = false;
+};
+
 $("c_ref").onclick = () => { renderOnline(); loadConn(); };
 setInterval(() => { if (isAdmin && adm.tab === "con" && $("panel").style.display === "block" && !document.hidden) { renderOnline(); loadConn(); } }, 30000);
 
