@@ -1,6 +1,6 @@
 # Mentions légales et composants tiers
 
-**Calendo** – © 2026 Matthieu Patrick Nicolas. Code source distribué sous licence
+**Calendo** – © 2026 Matthieu Nicolas. Code source distribué sous licence
 [PolyForm Noncommercial 1.0.0](LICENSE) : usage, modification et partage autorisés à des fins non
 commerciales (dont associations, amicales, services de secours et organismes publics) ; toute utilisation
 commerciale (vente, hébergement payant, intégration à une offre payante) nécessite une licence écrite

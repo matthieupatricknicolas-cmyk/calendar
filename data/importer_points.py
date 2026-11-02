@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Calendo – © 2026 Matthieu Patrick Nicolas – licence PolyForm Noncommercial 1.0.0 (voir LICENSE)
+"""Calendo – © 2026 Matthieu Nicolas – licence PolyForm Noncommercial 1.0.0 (voir LICENSE)
 
 Convertit un fichier d'adresses en SQL d'import pour Calendo.
 

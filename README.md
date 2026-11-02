@@ -138,7 +138,7 @@ Prérequis : un compte GitHub et un compte Supabase (offres gratuites suffisante
 
 ## Licence
 
-Calendo est distribué sous licence **[PolyForm Noncommercial 1.0.0](LICENSE)** – © 2026 Matthieu Patrick Nicolas.
+Calendo est distribué sous licence **[PolyForm Noncommercial 1.0.0](LICENSE)** – © 2026 Matthieu Nicolas.
 
 - **Autorisé** : utiliser, étudier, modifier et partager le code **à des fins non commerciales**. Les associations, amicales, services de secours, organismes publics et autres organisations à but non lucratif sont expressément visés : une autre caserne peut donc l'installer et l'adapter pour son propre usage, en suivant le guide ci-dessus.
 - **Interdit sans licence écrite du titulaire** : toute utilisation commerciale (vente, hébergement payant pour des tiers, intégration dans une offre payante).

@@ -1,4 +1,4 @@
-// Calendo – © 2026 Matthieu Patrick Nicolas – licence PolyForm Noncommercial 1.0.0 (voir LICENSE)
+// Calendo – © 2026 Matthieu Nicolas – licence PolyForm Noncommercial 1.0.0 (voir LICENSE)
 /* Service worker : coque de l'appli disponible hors-ligne, mises à jour prioritaires quand le réseau répond */
 const V = "calendo-v7", SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./logo.png"];
 const CDN = ["cdnjs.cloudflare.com", "cdn.jsdelivr.net"];
