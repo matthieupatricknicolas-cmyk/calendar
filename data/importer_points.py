@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Convertit un fichier d'adresses en SQL d'import pour Calendo.
+"""Calendo – © 2026 Matthieu Patrick Nicolas – licence PolyForm Noncommercial 1.0.0 (voir LICENSE)
+
+Convertit un fichier d'adresses en SQL d'import pour Calendo.
 
 Entrées acceptées : CSV (séparateur « ; », colonnes de data/modele_points.csv)
 ou GeoJSON (Point, propriétés numero, suffixe, nom_voie, nom_commune, tournee ;

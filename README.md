@@ -136,6 +136,17 @@ Prérequis : un compte GitHub et un compte Supabase (offres gratuites suffisante
 - **Modifier le modèle de base** : appliquez la migration sur Supabase puis reportez-la dans `supabase/schema.sql` pour garder le dépôt à jour.
 - **Confidentialité** : les données sont des adresses et des ventes ; n'exposez pas l'interface d'administration aux simples binômes (réservée au rôle `admin`), et supprimez les comptes inutilisés après la campagne.
 
-## Licence et données
+## Licence
+
+Calendo est distribué sous licence **[PolyForm Noncommercial 1.0.0](LICENSE)** – © 2026 Matthieu Patrick Nicolas.
+
+- **Autorisé** : utiliser, étudier, modifier et partager le code **à des fins non commerciales**. Les associations, amicales, services de secours, organismes publics et autres organisations à but non lucratif sont expressément visés : une autre caserne peut donc l'installer et l'adapter pour son propre usage, en suivant le guide ci-dessus.
+- **Interdit sans licence écrite du titulaire** : toute utilisation commerciale (vente, hébergement payant pour des tiers, intégration dans une offre payante).
+- **Conditions** : conserver le fichier `LICENSE` et la mention « Required Notice » en tête de celui-ci à chaque copie ou modification partagée.
+- Le logo, la photo de fond, le nom « Calendo » et les données d'adresses sont exclus de cette licence ; les composants tiers conservent leurs propres licences : voir [NOTICE.md](NOTICE.md).
+
+Ce résumé n'a pas de valeur juridique : seul le texte de [LICENSE](LICENSE) fait foi.
+
+## Données et fonds de carte
 
 Fond de carte © contributeurs OpenStreetMap ; vue aérienne © IGN (Géoplateforme) ; adresses de base : Base Adresse Nationale (Licence Ouverte).

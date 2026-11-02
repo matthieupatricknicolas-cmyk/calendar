@@ -1,3 +1,4 @@
+-- Calendo – © 2026 Matthieu Patrick Nicolas – licence PolyForm Noncommercial 1.0.0 (voir LICENSE)
 -- =====================================================================
 -- Calendo – modèle de base de données (Supabase / PostgreSQL)
 -- Reflète exactement la base installée. À exécuter UNE FOIS dans
