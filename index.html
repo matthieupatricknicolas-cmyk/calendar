@@ -800,12 +800,12 @@ function dashboard(f) {
   const n = {}; ST.forEach(s => n[s.k] = 0); let total = 0;
   items.forEach(({ p }) => { if (!inFilter(p, f)) return; total++; n[p.statut]++; });
   const days = new Map(), modes = {}; MODES.forEach(m => modes[m.k] = { n: 0, s: 0 });
-  let sumF = 0, nbF = 0, sumAll = 0;
+  let sumF = 0, nbF = 0, sumAll = 0, nbAll = 0; const foyers = new Set(); // adresses ayant au moins une vente
   ventes.forEach(v => {
     const it = items.get(v.point_id); if (!it) return;
-    sumAll += v.montant;
+    sumAll += v.montant; nbAll++;
     if (!inFilter(it.p, f)) return;
-    sumF += v.montant; nbF++;
+    sumF += v.montant; nbF++; foyers.add(v.point_id);
     const d = days.get(v.jour) || { n: 0, sum: 0 }; d.n++; d.sum += v.montant; days.set(v.jour, d);
     const md = modes[v.mode]; if (md) { md.n++; md.s += v.montant; }
   });
@@ -832,7 +832,8 @@ function dashboard(f) {
   $("leg").querySelectorAll("button").forEach(b => b.onclick = () => toggle(b.dataset.k));
 
   $("kpis").innerHTML = `<div class="kpi"><b>${EUR.format(sumF)}</b><span>${f ? "Total " + esc(label) : "Total global"}</span></div>
-    <div class="kpi"><b>${f ? EUR.format(sumAll) : nbF}</b><span>${f ? "Total global" : "ventes"}</span></div>`;
+    <div class="kpi"><b>${nbF}</b><span>vente${plur(nbF, "", "s")} · ${foyers.size} adresse${plur(foyers.size, "", "s")}</span></div>` +
+    (f ? `<div class="kpi" style="grid-column:1/-1"><b>${EUR.format(sumAll)}</b><span>Total global · ${nbAll} vente${plur(nbAll, "", "s")}</span></div>` : "");
 
   // ventes par jour
   const rows = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
