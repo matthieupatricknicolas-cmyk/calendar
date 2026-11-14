@@ -631,7 +631,9 @@ const MODES = [{ k: "especes", l: "Espèces", i: "💶" }, { k: "cheque", l: "Ch
 const modeOf = k => MODES.find(m => m.k === k) || MODES[0];
 const ventes = new Map();
 const normV = v => ({ id: v.id, point_id: v.point_id, montant: Number(v.montant), mode: v.mode, jour: v.jour, par: v.par, cree_le: v.cree_le });
-const ventesOf = pid => [...ventes.values()].filter(v => v.point_id === pid).sort((a, b) => String(a.cree_le).localeCompare(String(b.cree_le)));
+// un binôme ne voit que les ventes des adresses de ses tournées ; l'administrateur voit tout
+const venteVisible = v => { if (isAdmin) return true; const it = items.get(v.point_id); return !!(it && it.p.tournee && mine.has(it.p.tournee)); };
+const ventesOf = pid => [...ventes.values()].filter(v => v.point_id === pid && venteVisible(v)).sort((a, b) => String(a.cree_le).localeCompare(String(b.cree_le)));
 let rfT = null; // regroupe les rafraîchissements lors d'imports en masse
 let openIt = null, lastMode = "especes";
 
@@ -802,7 +804,7 @@ function dashboard(f) {
   const days = new Map(), modes = {}; MODES.forEach(m => modes[m.k] = { n: 0, s: 0 });
   let sumF = 0, nbF = 0, sumAll = 0, nbAll = 0; const foyers = new Set(); // adresses ayant au moins une vente
   ventes.forEach(v => {
-    const it = items.get(v.point_id); if (!it) return;
+    const it = items.get(v.point_id); if (!it || !venteVisible(v)) return;
     sumAll += v.montant; nbAll++;
     if (!inFilter(it.p, f)) return;
     sumF += v.montant; nbF++; foyers.add(v.point_id);
@@ -831,9 +833,9 @@ function dashboard(f) {
     <span class="n">${n[s.k]}</span><span class="p">${total ? Math.round(n[s.k] / total * 100) : 0} %</span></button>`).join("");
   $("leg").querySelectorAll("button").forEach(b => b.onclick = () => toggle(b.dataset.k));
 
-  $("kpis").innerHTML = `<div class="kpi"><b>${EUR.format(sumF)}</b><span>${f ? "Total " + esc(label) : "Total global"}</span></div>
+  $("kpis").innerHTML = `<div class="kpi"><b>${EUR.format(sumF)}</b><span>${f ? "Total " + esc(label) : isAdmin ? "Total global" : "Total de mes ventes"}</span></div>
     <div class="kpi"><b>${nbF}</b><span>vente${plur(nbF, "", "s")} · ${foyers.size} adresse${plur(foyers.size, "", "s")}</span></div>` +
-    (f ? `<div class="kpi" style="grid-column:1/-1"><b>${EUR.format(sumAll)}</b><span>Total global · ${nbAll} vente${plur(nbAll, "", "s")}</span></div>` : "");
+    (f ? `<div class="kpi" style="grid-column:1/-1"><b>${EUR.format(sumAll)}</b><span>${isAdmin ? "Total global" : "Total de mes ventes"} · ${nbAll} vente${plur(nbAll, "", "s")}</span></div>` : "");
 
   // ventes par jour
   const rows = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
@@ -861,7 +863,7 @@ $("exp").onclick = async () => {
   const ids = new Set(pts.map(p => p.id)), r2 = x => Math.round(x * 100) / 100;
   const adr = p => [p.numero, p.suffixe, p.nom_voie].filter(v => v !== null && v !== undefined && v !== "").join(" ");
   const dt = d => d ? new Date(d + "T12:00:00") : "";
-  const vs = [...ventes.values()].filter(v => ids.has(v.point_id)).sort((a, b) => a.jour.localeCompare(b.jour) || String(a.cree_le).localeCompare(String(b.cree_le)));
+  const vs = [...ventes.values()].filter(v => ids.has(v.point_id) && venteVisible(v)).sort((a, b) => a.jour.localeCompare(b.jour) || String(a.cree_le).localeCompare(String(b.cree_le)));
   const perPt = new Map(), jours = new Map();
   vs.forEach(v => {
     const x = perPt.get(v.point_id) || { n: 0, s: 0 }; x.n++; x.s += v.montant; perPt.set(v.point_id, x);

@@ -502,7 +502,7 @@ alter table public.archives_ventes enable row level security;
 create policy tournees_select on public.tournees for select to authenticated using (public.est_actif());
 create policy tournees_admin  on public.tournees for all    to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy points_select   on public.points  for select to authenticated using (public.est_actif());
-create policy ventes_select   on public.ventes  for select to authenticated using (public.est_actif());
+create policy ventes_select   on public.ventes  for select to authenticated using (public.is_admin() or exists (select 1 from public.points p where p.id = point_id and p.tournee in (select public.mes_tournees())));
 create policy utilisateurs_select on public.utilisateurs for select to authenticated using (public.is_admin() or email = public.mon_email());
 create policy utilisateurs_admin  on public.utilisateurs for all    to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy membres_select  on public.membres for select to authenticated using (public.is_admin() or email = public.mon_email());
