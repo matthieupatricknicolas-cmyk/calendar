@@ -121,7 +121,7 @@ Prérequis : un compte GitHub et un compte Supabase (offres gratuites suffisante
 ### 5. Règles de gestion à ajuster si besoin
 - Plafond d'une vente : `check (montant > 0 and montant < 10000)` (table `ventes`, fonction `ajouter_vente`).
 - Modes de paiement : `espèces / chèque / CB` (contrainte de `ventes` et fonction `ajouter_vente`, libellés dans `index.html`).
-- Statuts : tableau `ST` dans `index.html` + contrainte `points_statut_check` + `set_statut`.
+- Statuts (à faire, fait, partiel, repasse, refus, vide, laissé) : tableau `ST` dans `index.html` + contrainte `points_statut_check` + `set_statut`.
 - Historique de connexions : 200 lignes (`noter_connexion`).
 
 ### 6. Vérifier avant la mise en service

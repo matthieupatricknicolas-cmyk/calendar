@@ -32,7 +32,7 @@ create table public.points (
   nom_commune text,
   tournee     text references public.tournees(nom) on update cascade on delete set null,
   statut      text not null default 'a_faire'
-              constraint points_statut_check check (statut in ('a_faire','fait','partiel','repasse','refus')),
+              constraint points_statut_check check (statut in ('a_faire','fait','partiel','repasse','refus','vide','laisse')),
   date_passage date,
   lon         double precision not null,
   lat         double precision not null,
@@ -183,7 +183,7 @@ as $$
 declare e text := lower(auth.jwt() ->> 'email'); old text; t text;
   jour date := (now() at time zone 'Europe/Paris')::date;
 begin
-  if p_statut not in ('a_faire','fait','partiel','repasse','refus') then raise exception 'statut invalide'; end if;
+  if p_statut not in ('a_faire','fait','partiel','repasse','refus','vide','laisse') then raise exception 'statut invalide'; end if;
   select statut, tournee into old, t from public.points where id = p_id;
   if not found then raise exception 'point introuvable'; end if;
   if not (public.is_admin() or t in (select public.mes_tournees())) then raise exception 'acces refuse'; end if;

@@ -20,7 +20,7 @@ comment on column public.points.suffixe is 'Indice de répétition : bis, ter, A
 comment on column public.points.nom_voie is 'Nom de la voie.';
 comment on column public.points.nom_commune is 'Commune de l''adresse.';
 comment on column public.points.tournee is 'Tournée de rattachement (NULL = non affectée).';
-comment on column public.points.statut is 'État du passage : a_faire, fait, partiel (partiellement fait), repasse (à repasser), refus.';
+comment on column public.points.statut is 'État du passage : a_faire, fait, partiel (partiellement fait), repasse (à repasser), refus, vide (logement vide), laisse (calendrier laissé).';
 comment on column public.points.date_passage is 'Date (heure de Paris) du dernier passage enregistré.';
 comment on column public.points.lon is 'Longitude WGS84 (EPSG:4326).';
 comment on column public.points.lat is 'Latitude WGS84 (EPSG:4326).';

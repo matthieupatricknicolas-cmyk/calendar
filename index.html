@@ -406,7 +406,8 @@ const SB = supabase.createClient("https://oczxkctqaxfigsfjzoeu.supabase.co", "sb
 const ST = [
   {k:"a_faire", l:"À faire", c:"#3b82f6"}, {k:"fait", l:"Fait", c:"#16a34a"},
   {k:"partiel", l:"Partiellement fait", s:"Partiel", c:"#0d9488"},
-  {k:"repasse", l:"Repasse", c:"#f59e0b"}, {k:"refus", l:"Refus", c:"#dc2626"}];
+  {k:"repasse", l:"Repasse", c:"#f59e0b"}, {k:"refus", l:"Refus", c:"#dc2626"},
+  {k:"vide", l:"Vide", c:"#6b7280"}, {k:"laisse", l:"Laissé", c:"#7c3aed"}];
 const NOTE = new Set(["partiel", "repasse"]); // statuts avec champ « Précisions »
 const meta = k => ST.find(s => s.k === k) || ST[0];
 const $ = id => document.getElementById(id);
