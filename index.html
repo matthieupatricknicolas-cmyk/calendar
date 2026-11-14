@@ -482,7 +482,7 @@ async function start() {
   $("addb").style.display = "block";
   await loadAll();
   flush();
-  const touched = pid => { refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen && document.activeElement?.id !== "nt") rerender(openIt); };
+  const touched = pid => { const t = items.get(pid); if (t) restyle(t); refresh(false); if (openIt && openIt.p.id === pid && !openIt.addOpen && document.activeElement?.id !== "nt") rerender(openIt); };
   SB.channel("live")
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "points" },
       p => {
@@ -588,6 +588,7 @@ async function loadAll() {
     data.forEach(v => ventes.set(v.id, normV(v)));
     if (data.length < 1000) break;
   }
+  items.forEach(restyle); // contours rouges « Fait sans vente » une fois les ventes connues
   const t = await SB.from("tournees").select("nom").order("nom");
   tournees = (t.data || []).map(x => x.nom);
   fillTournees(true);
@@ -603,7 +604,9 @@ async function loadAll() {
 const toggle = k => { active.has(k) ? active.delete(k) : active.add(k); refresh(false); };
 const CZ = 14; // en dessous de ce zoom : une pastille par tournée au lieu des points
 const zr = () => { const z = map ? map.getZoom() : 17; return z >= 18 ? 10 : z >= 17 ? 9 : z >= 16 ? 7 : z >= 15 ? 6 : 5; };
-const sty = p => ({ radius: zr(), color: "#fff", weight: map && map.getZoom() < 16 ? 1.5 : 2, fillColor: meta(p.statut).c, fillOpacity: canEdit(p) ? .95 : .5 });
+// adresse « Fait » sans aucune vente enregistrée : contour rouge (visible sur ses propres tournées, ou par l'admin)
+const sansVente = p => p.statut === "fait" && canEdit(p) && ![...ventes.values()].some(v => v.point_id === p.id);
+const sty = p => ({ radius: zr(), color: sansVente(p) ? "#dc2626" : "#fff", weight: sansVente(p) ? 3 : map && map.getZoom() < 16 ? 1.5 : 2, fillColor: meta(p.statut).c, fillOpacity: canEdit(p) ? .95 : .5 });
 const restyle = it => it.m.setStyle(sty(it.p));
 
 /* Étiquette du numéro de rue, dessinée sur le canvas (léger même avec des milliers de points) */
@@ -735,7 +738,7 @@ function delVente(it, id) {
   const waiting = queue.some(q => q.k === "vente" && q.id === id && q !== flush.cur);
   queue = queue.filter(q => !(q.k === "vente" && q.id === id && q !== flush.cur));
   if (!waiting) queue.push({ k: "del", id });
-  saveQ(); refresh(false); rerender(it); flush();
+  saveQ(); restyle(it); refresh(false); rerender(it); flush();
 }
 async function flush() {
   if (flush.busy) return; flush.busy = true;
@@ -768,7 +771,7 @@ function refresh(fit) {
 function renderMap() {
   const f = $("ftour").value, clustered = map.getZoom() < CZ, groups = new Map(), r = zr();
   if (!cl) cl = L.layerGroup().addTo(map);
-  if (r !== lastR) { lastR = r; items.forEach(it => { it.m.setRadius(r); it.m.options.weight = map.getZoom() < 16 ? 1.5 : 2; }); }
+  if (r !== lastR) { lastR = r; items.forEach(it => { it.m.setRadius(r); it.m.options.weight = sansVente(it.p) ? 3 : map.getZoom() < 16 ? 1.5 : 2; }); }
   items.forEach(it => {
     const p = it.p, show = inFilter(p, f) && active.has(p.statut);
     if (show && !clustered) { if (!layer.hasLayer(it.m)) layer.addLayer(it.m); } else layer.removeLayer(it.m);
